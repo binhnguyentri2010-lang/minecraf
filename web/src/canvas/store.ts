@@ -32,7 +32,7 @@ function coarsePointer(): boolean {
   }
 }
 
-export const COLORS = ['#111318', '#1f6feb', '#d1242f', '#1a7f37', '#e16f24', '#8250df', '#0e7490', '#db2777'];
+export const COLORS = ['#111318', '#1f6feb', '#d1242f', '#f2c200', '#1a7f37', '#e16f24', '#8250df', '#db2777'];
 
 export interface Snapshot {
   items: Item[];
@@ -45,6 +45,7 @@ export interface BoardMeta {
   id: string;
   name: string;
   updated: number;
+  fav?: boolean;
 }
 
 interface BoardState {
@@ -59,6 +60,8 @@ interface BoardState {
   snap: boolean;
   background: Background;
   pencilOnly: boolean;
+  palette: string[];
+  addColor: (c: string) => void;
   smooth: number;
   viewport: Viewport;
   seq: number;
@@ -132,7 +135,13 @@ export const useBoard = create<BoardState>((set, get) => {
     size: 3,
     dash: false,
     snap: true,
-    background: 'grid',
+    background: 'dots',
+    palette: [...COLORS],
+    addColor: (c) =>
+      set((st) => {
+        const palette = st.palette.includes(c) ? st.palette : [...st.palette.slice(-9), c];
+        return { palette, color: c, tool: st.tool === 'eraser' ? 'pen' : st.tool };
+      }),
     pencilOnly: readPref('pencilOnly', coarsePointer()),
     smooth: readPref('smooth', 0.5),
     viewport: { x: 0, y: 0, scale: 1 },

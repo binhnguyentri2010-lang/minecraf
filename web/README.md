@@ -4,6 +4,14 @@ Web app chạy hoàn toàn trên trình duyệt (không máy chủ, không tài 
 
 Dữ liệu lưu ngay trên thiết bị (IndexedDB). Cài lên màn hình chính iPad như một app: Safari → Chia sẻ → **Thêm vào Màn hình chính**. Sau lần mở đầu tiên app chạy được cả khi mất mạng.
 
+## Giao diện (kiểu GoodNotes)
+
+- **Thanh tiêu đề xanh navy** có hàng **tab** cho các bảng đang mở (nút Tài liệu, dấu ×, dấu + để tạo bảng mới) và hàng **công cụ**: Khoanh vùng, Chọn, Bút, Bút dạ quang, Tẩy, Công thức, Hình vẽ nhanh, Hình vẽ sẵn, Đồ thị, Thước kẻ, Thước đo góc; bên phải là Chỉ Pencil, Xuất và menu "…" (nền giấy, thu phóng 100%, xoá bảng).
+- **Thanh tuỳ chọn bút nổi** dưới tiêu đề khi dùng bút/dạ quang/đoạn thẳng/mũi tên/compa/hình chữ nhật: Nắn nét, Mượt, Nét đứt, 3 độ dày, 8 màu và nút **+** chọn màu tuỳ ý (màu mới được nhớ trong bảng màu).
+- **Nút hoàn tác/làm lại** nổi ở góc trên trái, **khung thu phóng** ở góc dưới trái (bấm % để về 100%, nút vuông để vừa toàn bộ nội dung).
+- **Màn hình Tài liệu** (nút nhà): lưới thumbnail các bảng, cột bên trái Tài liệu / Yêu thích, nút **Mới**, ngôi sao yêu thích, menu từng bảng (Đổi tên, Nhân bản, Xoá có xác nhận), chuyển dạng lưới/danh sách. Thumbnail được tạo khi rời một bảng.
+- Nền mặc định là **giấy chấm**; đổi ở menu "…". Trên điện thoại thanh tuỳ chọn bút chuyển xuống đáy, các bảng thuộc tính thành bảng trượt từ dưới lên.
+
 ## Tính năng
 
 **Vẽ tay**
@@ -76,7 +84,7 @@ web/tests/   unit (Vitest) và e2e (Playwright-core)
 ## Đã kiểm chứng gì
 
 - **Unit (90)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
-- **E2E (235 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
+- **E2E (317 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng, tab, thư viện tài liệu (thumbnail, yêu thích, đổi tên, nhân bản, xoá) và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
 
 ## Tốc độ khởi động
 

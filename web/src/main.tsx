@@ -7,11 +7,14 @@ import { useBoard } from './canvas/store';
 import { insertShape } from './shapes/insert';
 import { SHAPES, buildShapeObj, defaultParams } from './shapes/registry';
 import { autosave, restore } from './storage/persist';
+import { syncTabs } from './ui/tabs';
+import { useUI } from './ui/uiStore';
 import './styles.css';
 
 if (import.meta.env.DEV || import.meta.env.VITE_E2E) {
   const w = window as unknown as Record<string, unknown>;
   w.__board = useBoard;
+  w.__ui = useUI;
   w.__app = { useBoard, insertShape, SHAPES, buildShapeObj, defaultParams, itemBounds, selectionGeo };
 }
 
@@ -24,7 +27,11 @@ createRoot(document.getElementById('root')!).render(
 requestAnimationFrame(() => document.getElementById('boot')?.remove());
 
 // a storage problem must never leave a blank page: keep the empty board
-restore().catch(() => {}).finally(autosave);
+restore().catch(() => {}).finally(() => {
+  autosave();
+  syncTabs();
+  useBoard.subscribe((s, p) => (s.boards !== p.boards || s.boardId !== p.boardId) && syncTabs());
+});
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});

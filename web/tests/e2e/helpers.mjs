@@ -52,7 +52,10 @@ export function makeIO(page, cdp) {
   };
   const line = (a, b, n = 12) => Array.from({ length: n + 1 }, (_, i) => [a[0] + ((b[0] - a[0]) * i) / n, a[1] + ((b[1] - a[1]) * i) / n]);
   const touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y], id) => ({ x, y, id })) });
-  const tool = (name) => page.getByTestId(`tool-${name}`).click();
+  const tool = async (name) => {
+    if (['line', 'arrow', 'circle', 'rect'].includes(name)) await page.getByTestId('open-shapes').click(); // quick shapes live in a popover
+    await page.getByTestId(`tool-${name}`).click();
+  };
   const w2s = (vp, x, y) => [vp.x + x * vp.scale, vp.y + y * vp.scale];
   return { state, mouse, penDown, penMove, penUp, drag, line, touch, tool, w2s };
 }

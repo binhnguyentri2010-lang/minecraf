@@ -98,10 +98,10 @@ await io.drag(loop((box[0] + box[2]) / 2, (box[1] + box[3]) / 2, (box[2] - box[0
 s = await io.state();
 await io.tool('lasso');
 await page.evaluate(() => window.__board.getState().select([]));
-const sp = await page.evaluate(() => { const st = window.__board.getState(); const it = st.items.find((i) => i.type === 'stroke'); const v = st.viewport; return [v.x + it.pts[0].x * v.scale, v.y + it.pts[0].y * v.scale, it.id]; });
+const sp = await page.evaluate(() => { const st = window.__board.getState(); const v = st.viewport; const scr = st.items.filter((i) => i.type === 'stroke').map((it) => [v.x + it.pts[0].x * v.scale, v.y + it.pts[0].y * v.scale, it.id]); /* a stroke start that is not under the header or a floating pill */ return scr.filter(([x, y]) => x > 200 && x < 1000 && y > 220 && y < 700).sort((a, b) => b[0] - a[0])[0] ?? scr[0]; });
 await io.penDown(sp[0], sp[1]); await io.penUp(sp[0], sp[1]);
 s = await io.state();
-check('tapping a stroke with the lasso selects just that stroke', s.selection.length === 1 && s.selection[0] === sp[2]);
+check('tapping a stroke with the lasso selects just that stroke', s.selection.length === 1 && s.selection[0] === sp[2], JSON.stringify({ sp, sel: s.selection.length, tool: s.tool }));
 await page.evaluate(() => window.__board.getState().select([]));
 await io.drag(loop((box[0] + box[2]) / 2, (box[1] + box[3]) / 2, (box[2] - box[0]) * 0.75, (box[3] - box[1]) * 0.75));
 s = await io.state();

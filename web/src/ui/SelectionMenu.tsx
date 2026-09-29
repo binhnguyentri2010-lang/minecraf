@@ -38,8 +38,9 @@ export function SelectionMenu() {
   const left = Math.min(Math.max(cx, 140), vw - 140);
   // clear of the rotate handle (~45px above the box) and of the scale handle below it
   let ty = top - 112;
-  if (ty < 76) ty = bottom + 30;
-  ty = Math.max(76, Math.min(ty, vh - 130));
+  const minTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-h')) + 10 || 136;
+  if (ty < minTop) ty = bottom + 30;
+  ty = Math.max(minTop, Math.min(ty, vh - 130));
   return (
     <div className="selmenu glass" style={{ left, top: ty }} role="toolbar" aria-label="Thao tác với vùng chọn" data-testid="selmenu">
       <button onClick={st.cutSelected} data-testid="cut">{Icons.cut}<span>Cắt</span></button>

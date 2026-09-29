@@ -1,6 +1,8 @@
 import { del, get, set } from 'idb-keyval';
 import { uid as makeId } from '../canvas/id';
+import { renderBoardToCanvas } from '../canvas/render';
 import { useBoard } from '../canvas/store';
+import { create } from 'zustand';
 import type { BoardMeta, Snapshot } from '../canvas/store';
 import type { Background, Item, Viewport } from '../canvas/types';
 
@@ -112,10 +114,10 @@ export async function flush() {
 
 export function autosave() {
   const onHide = () => {
-    if (document.visibilityState === 'hidden') void flush();
+    if (document.visibilityState === 'hidden') void leaveEditor();
   };
   document.addEventListener('visibilitychange', onHide);
-  window.addEventListener('pagehide', () => void flush());
+  window.addEventListener('pagehide', () => void leaveEditor());
   let vtimer: number | undefined;
   return useBoard.subscribe((s, p) => {
     if (s.items !== p.items || s.background !== p.background || s.seq !== p.seq) {
@@ -130,18 +132,20 @@ export function autosave() {
 }
 
 export async function newBoard(name?: string) {
+  await updateThumb();
   await flush();
   const st = useBoard.getState(); // read AFTER flush: it refreshes the boards list
   const id = uid();
   const n = name?.trim() || `Bảng ${st.boards.length + 1}`;
   st.setBoards([...st.boards, { id, name: n, updated: Date.now() }], id);
-  st.load({ items: [], background: st.background, viewport: EMPTY_VIEWPORT, seq: 0 });
+  st.load({ items: [], background: 'dots', viewport: EMPTY_VIEWPORT, seq: 0 });
   await saveCurrent();
 }
 
 export async function openBoard(id: string) {
   if (id === useBoard.getState().boardId || !useBoard.getState().boards.some((b) => b.id === id)) return;
   const snap = (await readSnapshot(id)) ?? { items: [], background: 'grid' as Background, viewport: EMPTY_VIEWPORT, seq: 0 };
+  await updateThumb(); // the board we are leaving gets its library thumbnail
   await flush(); // last await before switching: nothing can be drawn between the save and the load
   const st = useBoard.getState();
   st.setBoards(st.boards, id);
@@ -166,6 +170,8 @@ export async function deleteBoard(id: string) {
   const rest = st.boards.filter((b) => b.id !== id);
   await safe(() => del(boardKey(id)), undefined);
   await safe(() => del(viewKey(id)), undefined);
+  await safe(() => del(thumbKey(id)), undefined);
+  useThumbs.getState().drop(id);
   if (id === st.boardId) {
     const next = rest[0];
     const snap = (await readSnapshot(next.id)) ?? { items: [], background: 'grid' as Background, viewport: EMPTY_VIEWPORT, seq: 0 };
@@ -176,5 +182,69 @@ export async function deleteBoard(id: string) {
     const cur = useBoard.getState();
     cur.setBoards(cur.boards.filter((b) => b.id !== id), cur.boardId);
   }
+  await saveMeta();
+}
+
+// ---------------------------------------------------------------- thumbnails (kept out of the meta record so autosave stays small)
+
+const thumbKey = (id: string) => `thumb:${id}`;
+
+export const useThumbs = create<{ map: Record<string, string>; put: (id: string, url: string) => void; drop: (id: string) => void }>((set) => ({
+  map: {},
+  put: (id, url) => set((s) => ({ map: { ...s.map, [id]: url } })),
+  drop: (id) => set((s) => { const { [id]: _gone, ...rest } = s.map; return { map: rest }; }),
+}));
+
+/** Render the open board into a small JPEG for the document library. */
+export async function updateThumb() {
+  const st = useBoard.getState();
+  if (!st.boardId) return;
+  try {
+    const url = renderBoardToCanvas(st.items, st.background, 420, 0.6).toDataURL('image/jpeg', 0.7);
+    useThumbs.getState().put(st.boardId, url);
+    await safe(() => set(thumbKey(st.boardId), url), undefined);
+  } catch {
+    /* thumbnails are cosmetic */
+  }
+}
+
+export async function loadThumbs() {
+  for (const b of useBoard.getState().boards) {
+    if (useThumbs.getState().map[b.id]) continue;
+    const url = await safe(() => get<string>(thumbKey(b.id)), undefined);
+    if (url) useThumbs.getState().put(b.id, url);
+  }
+}
+
+/** Called when leaving the editor (library, hiding the page): thumbnail + full save. */
+export async function leaveEditor() {
+  await updateThumb();
+  await flush();
+}
+
+export async function toggleFavorite(id: string) {
+  const st = useBoard.getState();
+  st.setBoards(st.boards.map((b) => (b.id === id ? { ...b, fav: !b.fav } : b)), st.boardId);
+  await saveMeta();
+}
+
+export async function duplicateBoard(id: string) {
+  await flush();
+  const snap = await loadSnapshot(id);
+  const st = useBoard.getState();
+  const src = st.boards.find((b) => b.id === id);
+  if (!snap || !src) return;
+  const nid = uid();
+  const { viewport, ...content } = snap;
+  await safe(() => set(boardKey(nid), content satisfies Persisted), undefined);
+  await safe(() => set(viewKey(nid), viewport), undefined);
+  const thumb = useThumbs.getState().map[id];
+  if (thumb) {
+    useThumbs.getState().put(nid, thumb);
+    await safe(() => set(thumbKey(nid), thumb), undefined);
+  }
+  const at = st.boards.findIndex((b) => b.id === id);
+  const boards = [...st.boards.slice(0, at + 1), { id: nid, name: `${src.name} (bản sao)`, updated: Date.now() }, ...st.boards.slice(at + 1)];
+  st.setBoards(boards, st.boardId);
   await saveMeta();
 }

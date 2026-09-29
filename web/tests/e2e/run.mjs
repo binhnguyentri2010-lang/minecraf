@@ -22,7 +22,7 @@ if ((await run('node', ['node_modules/vite/bin/vite.js', 'build', '--outDir', 'd
 const dev = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--outDir', 'dist-e2e', '--port', '5188', '--strictPort'], { stdio: 'ignore' });
 try {
   await waitFor('http://localhost:5188/');
-  for (const f of ['core', 'interact', 'lasso', 'palm', 'layout']) {
+  for (const f of ['core', 'interact', 'lasso', 'palm', 'gn', 'layout']) {
     console.log(`\n=== ${f} ===`);
     failed += (await run('node', [`tests/e2e/${f}.mjs`], { URL: 'http://localhost:5188/' })) ? 1 : 0;
   }
