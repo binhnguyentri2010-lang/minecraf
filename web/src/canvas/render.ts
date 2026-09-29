@@ -1,7 +1,7 @@
 import { getStroke } from 'perfect-freehand';
 import { drawMath } from '../math/mathtext';
 import { groupBounds, itemBounds } from './objects';
-import type { Background, Item, Obj, Prim, Stroke, Viewport } from './types';
+import type { Background, Item, Obj, Prim, Pt, Stroke, Viewport } from './types';
 import { GRID } from './types';
 
 export const PAPER = '#fbfbf8';
@@ -12,15 +12,33 @@ const pathCache = new WeakMap<Stroke, Path2D>();
 /** stabiliser strength → perfect-freehand options (0.4 reproduces the original look) */
 export const smoothingOptions = (smooth = 0.4) => ({ smoothing: 0.4 + 0.5 * smooth, streamline: 0.1 + 0.7 * smooth });
 
+/** Catmull-Rom densification: the outline is built from a curve, not a polyline, so its edges come out round instead of faceted. */
+export function curvePoints(pts: Pt[], step = 1.5): Pt[] {
+  const n = pts.length;
+  if (n < 3) return pts;
+  const out: Pt[] = [pts[0]];
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = pts[Math.max(0, i - 1)], p1 = pts[i], p2 = pts[i + 1], p3 = pts[Math.min(n - 1, i + 2)];
+    const len = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const k = Math.min(8, Math.max(1, Math.round(len / step)));
+    for (let j = 1; j <= k; j++) {
+      const t = j / k, t2 = t * t, t3 = t2 * t;
+      const f = (a: number, b: number, c: number, d: number) => 0.5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3);
+      out.push({ x: f(p0.x, p1.x, p2.x, p3.x), y: f(p0.y, p1.y, p2.y, p3.y), p: p1.p + (p2.p - p1.p) * t });
+    }
+  }
+  return out;
+}
+
 export function strokeOutline(s: Stroke): number[][] {
   return getStroke(
-    s.pts.map((p) => [p.x, p.y, p.p]),
+    curvePoints(s.pts).map((p) => [p.x, p.y, p.p]),
     {
       size: s.kind === 'highlighter' ? s.size : s.size * 1.7,
       thinning: s.kind === 'highlighter' ? 0 : 0.62,
       // ink-like: pointed start/end, pressure eased so light touches stay fine and firm ones swell
       easing: (t: number) => t * (2 - t),
-      start: { taper: s.kind === 'highlighter' ? 0 : s.size * 2, cap: true },
+      start: { taper: s.kind === 'highlighter' ? 0 : s.size, cap: true },
       end: { taper: s.kind === 'highlighter' ? 0 : s.size * 4, cap: true },
       ...smoothingOptions(s.smooth),
       simulatePressure: !s.pen,
