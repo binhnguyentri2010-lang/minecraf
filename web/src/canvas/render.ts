@@ -16,8 +16,12 @@ export function strokeOutline(s: Stroke): number[][] {
   return getStroke(
     s.pts.map((p) => [p.x, p.y, p.p]),
     {
-      size: s.kind === 'highlighter' ? s.size : s.size * 1.6,
-      thinning: s.kind === 'highlighter' ? 0 : 0.5,
+      size: s.kind === 'highlighter' ? s.size : s.size * 1.7,
+      thinning: s.kind === 'highlighter' ? 0 : 0.62,
+      // ink-like: pointed start/end, pressure eased so light touches stay fine and firm ones swell
+      easing: (t: number) => t * (2 - t),
+      start: { taper: s.kind === 'highlighter' ? 0 : s.size * 2, cap: true },
+      end: { taper: s.kind === 'highlighter' ? 0 : s.size * 4, cap: true },
       ...smoothingOptions(s.smooth),
       simulatePressure: !s.pen,
     },
