@@ -58,3 +58,15 @@ export function strokesBounds(strokes: Stroke[]) {
   }
   return { minX, minY, maxX, maxY };
 }
+
+/** Light moving-average pass(es) over a stroke; endpoints stay fixed so the stroke still starts and ends where the pen did. */
+export function smoothPoints(pts: Pt[], passes: number): Pt[] {
+  let cur = pts;
+  for (let k = 0; k < passes && cur.length >= 3; k++) {
+    const src = cur;
+    cur = src.map((p, i) =>
+      i === 0 || i === src.length - 1 ? p : { x: (src[i - 1].x + 2 * p.x + src[i + 1].x) / 4, y: (src[i - 1].y + 2 * p.y + src[i + 1].y) / 4, p: p.p },
+    );
+  }
+  return cur;
+}

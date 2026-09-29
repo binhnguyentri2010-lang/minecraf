@@ -28,6 +28,7 @@ export const Icons = {
   boards: I(<><rect x="4" y="5" width="13" height="10" rx="1.5" /><path d="M7 19h13V9" /></>),
   export: I(<><path d="M12 15V4M8 8l4-4 4 4" /><path d="M5 14v5h14v-5" /></>),
   dash: I(<path d="M4 12h3M10.5 12h3M17 12h3" />),
+  smooth: I(<><path d="M3 15c3-8 5 6 9-2s6 4 9-3" /></>),
   snap: I(<><path d="M5 17c2-8 6-12 14-11-1 8-5 12-11 11" /><path d="M5 19l4-4" /></>),
   hand: I(<><path d="M8 13V6a1.5 1.5 0 013 0v5M11 11V4.5a1.5 1.5 0 013 0V11M14 11V6a1.5 1.5 0 013 0v8a6 6 0 01-6 6h-1a5 5 0 01-4-2l-3-4a1.5 1.5 0 012.3-1.9L8 15" /></>),
   close: I(<path d="M6 6l12 12M18 6L6 18" />),

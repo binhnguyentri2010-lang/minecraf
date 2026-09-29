@@ -6,6 +6,32 @@ type Entry =
   | { type: 'add' | 'remove'; items: Item[] }
   | { type: 'update'; before: Item[]; after: Item[] };
 
+function readPref<T extends boolean | number>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(`bt-${key}`);
+    if (raw === null) return fallback;
+    const v = JSON.parse(raw);
+    return typeof v === typeof fallback ? (v as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function writePref(key: string, v: boolean | number) {
+  try {
+    localStorage.setItem(`bt-${key}`, JSON.stringify(v));
+  } catch {
+    /* private mode: keep in memory only */
+  }
+}
+/** touch-first devices (iPad/phone) start with palm-safe "Pencil only" */
+function coarsePointer(): boolean {
+  try {
+    return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  } catch {
+    return false;
+  }
+}
+
 export const COLORS = ['#111318', '#1f6feb', '#d1242f', '#1a7f37', '#e16f24', '#8250df', '#0e7490', '#db2777'];
 
 export interface Snapshot {
@@ -33,6 +59,7 @@ interface BoardState {
   snap: boolean;
   background: Background;
   pencilOnly: boolean;
+  smooth: number;
   viewport: Viewport;
   seq: number;
   ruler: Aid | null;
@@ -50,6 +77,7 @@ interface BoardState {
   setSnap: (v: boolean) => void;
   setBackground: (b: Background) => void;
   setPencilOnly: (v: boolean) => void;
+  setSmooth: (v: number) => void;
   setViewport: (v: Viewport) => void;
   setRuler: (a: Aid | null) => void;
   setProtractor: (a: Aid | null) => void;
@@ -105,7 +133,8 @@ export const useBoard = create<BoardState>((set, get) => {
     dash: false,
     snap: true,
     background: 'grid',
-    pencilOnly: false,
+    pencilOnly: readPref('pencilOnly', coarsePointer()),
+    smooth: readPref('smooth', 0.5),
     viewport: { x: 0, y: 0, scale: 1 },
     seq: 0,
     ruler: null,
@@ -141,7 +170,14 @@ export const useBoard = create<BoardState>((set, get) => {
     },
     setSnap: (snap) => set({ snap }),
     setBackground: (background) => set({ background }),
-    setPencilOnly: (pencilOnly) => set({ pencilOnly }),
+    setPencilOnly: (pencilOnly) => {
+      writePref('pencilOnly', pencilOnly);
+      set({ pencilOnly });
+    },
+    setSmooth: (smooth) => {
+      writePref('smooth', smooth);
+      set({ smooth });
+    },
     setViewport: (viewport) => set({ viewport }),
     setRuler: (ruler) => set({ ruler }),
     setProtractor: (protractor) => set({ protractor }),

@@ -9,14 +9,16 @@ const FONT = '-apple-system,"SF Pro Text","Segoe UI",system-ui,sans-serif';
 
 const pathCache = new WeakMap<Stroke, Path2D>();
 
+/** stabiliser strength → perfect-freehand options (0.4 reproduces the original look) */
+export const smoothingOptions = (smooth = 0.4) => ({ smoothing: 0.4 + 0.5 * smooth, streamline: 0.1 + 0.7 * smooth });
+
 export function strokeOutline(s: Stroke): number[][] {
   return getStroke(
     s.pts.map((p) => [p.x, p.y, p.p]),
     {
       size: s.kind === 'highlighter' ? s.size : s.size * 1.6,
       thinning: s.kind === 'highlighter' ? 0 : 0.5,
-      smoothing: 0.6,
-      streamline: 0.4,
+      ...smoothingOptions(s.smooth),
       simulatePressure: !s.pen,
     },
   );

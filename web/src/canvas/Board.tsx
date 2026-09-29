@@ -3,13 +3,15 @@ import {
   RULER, aidHit, aidPivot, aidToWorld, drawProtractor, drawRuler, snapToRuler, type AidName,
 } from './aids';
 import { uid } from './id';
-import { clampScale, screenToWorld, transformViewport } from './geometry';
+import { smoothPoints, clampScale, screenToWorld, transformViewport } from './geometry';
 import { itemBounds, itemHit, similarity, transformItem } from './objects';
 import { itemsInLasso } from './lasso';
 import { drawMarquee, drawSelection, rectsIntersect, selectionGeo, shapeFromDrag, type DragShape } from './overlay';
 import { drawBackground, drawItem, drawStroke, drawVisibleItems, setViewTransform } from './render';
-import { recognize } from './snap';
+import { PalmGuard } from './palm';
+import { recognize, snapLineEnd } from './snap';
 import { useBoard } from './store';
+import { useUI } from '../ui/uiStore';
 import type { Aid, Pt, Stroke, V } from './types';
 
 const ERASER_PX = 14;
@@ -26,6 +28,8 @@ type Live =
       lastScreen: V;
       timer: number;
       preview: Pt[] | null;
+      /** the hold turned the open stroke into a straight line that now follows the pen */
+      lineMode: boolean;
     }
   | { kind: 'erase'; id: number }
   | { kind: 'shape'; id: number; tool: DragShape; start: V; cur: V }
@@ -218,7 +222,9 @@ export function Board() {
   const touchPoints = () => [...pointers.current.values()].filter((p) => p.type === 'touch');
 
   // GoodNotes-style: tap with two fingers = undo, three fingers = redo
-  const tap = useRef({ t0: 0, max: 0, moved: false });
+  const tap = useRef({ t0: 0, max: 0, moved: false, spread: Infinity });
+  const guard = useRef(new PalmGuard());
+  const hinted = useRef(false);
 
   const resetGesture = () => {
     const t = touchPoints();
@@ -320,24 +326,49 @@ export function Board() {
     l.timer = window.setTimeout(() => {
       if (live.current !== l || l.ruler || !useBoard.getState().snap) return;
       const rec = recognize(l.stroke.pts);
-      if (rec) {
+      if (rec && rec.kind !== 'line') {
         l.preview = toPts(rec.pts);
         scheduleLive();
+        return;
       }
+      // anything else drawn as an open stroke and held still becomes a straight line from where it started;
+      // it keeps following the pen until the pen is lifted
+      const pts = l.stroke.pts;
+      const a = pts[0], b = pts[pts.length - 1];
+      if (Math.hypot(b.x - a.x, b.y - a.y) * useBoard.getState().viewport.scale < 24) return;
+      const end = snapLineEnd(a, b);
+      l.lineMode = true;
+      l.preview = [{ x: a.x, y: a.y, p: 0.5 }, { x: end.x, y: end.y, p: 0.5 }];
+      scheduleLive();
     }, HOLD_MS);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
     const st = useBoard.getState();
-    if (e.pointerType === 'pen' && !st.pencilOnly) st.setPencilOnly(true);
+    if (e.pointerType === 'pen') {
+      if (!st.pencilOnly) st.setPencilOnly(true);
+      // a palm/finger already resting on the glass when the pen lands is dropped for good
+      const dropped = guard.current.pen('down', e.pointerId);
+      if (dropped.length) {
+        for (const id of dropped) pointers.current.delete(id);
+        if (live.current && dropped.includes(live.current.id)) cancelLive();
+        gesture.current = null;
+        tap.current = { t0: 0, max: 0, moved: false, spread: Infinity };
+      }
+    } else if (e.pointerType === 'touch' && !guard.current.touchDown(e.pointerId)) {
+      return; // palm or finger next to the pen: not a gesture, not a stroke
+    }
     (e.target as Element).setPointerCapture(e.pointerId);
     const p = local(e);
     pointers.current.set(e.pointerId, { ...p, sx: p.x, sy: p.y, type: e.pointerType });
     const w = world(p.x, p.y);
 
     if (e.pointerType === 'touch') {
-      if (touchPoints().length === 1) tap.current = { t0: performance.now(), max: 1, moved: false };
+      if (touchPoints().length === 1) tap.current = { t0: performance.now(), max: 1, moved: false, spread: Infinity };
       else tap.current.max = Math.max(tap.current.max, touchPoints().length);
+      const tp = touchPoints();
+      for (let i = 0; i < tp.length; i++)
+        for (let j = i + 1; j < tp.length; j++) tap.current.spread = Math.min(tap.current.spread, Math.hypot(tp[i].x - tp[j].x, tp[i].y - tp[j].y));
       const multi = touchPoints().length >= 2;
       if (multi) cancelLive();
       if (!multi && !live.current) {
@@ -348,6 +379,10 @@ export function Board() {
         }
       }
       if (multi || st.pencilOnly) {
+        if (!multi && st.pencilOnly && !hinted.current) {
+          hinted.current = true;
+          useUI.getState().showToast('Đang bật "Chỉ Pencil": ngón tay chỉ kéo và thu phóng. Bấm "Chỉ Pencil" để vẽ bằng ngón tay.');
+        }
         resetGesture();
         return;
       }
@@ -383,6 +418,7 @@ export function Board() {
       kind: st.tool === 'highlighter' ? 'highlighter' : 'pen',
       size: st.tool === 'highlighter' ? Math.max(st.size * 5, 14) : st.size,
       pen: isPen,
+      smooth: st.smooth,
       pts: [{ x: w[0], y: w[1], p: isPen ? e.pressure || 0.5 : 0.5 }],
     };
     let ruler: { p0: V; d: V } | null = null;
@@ -390,13 +426,15 @@ export function Board() {
       ruler = snapToRuler(st.ruler, w[0], w[1], 14 / st.viewport.scale);
       if (ruler) stroke.pts = [{ x: ruler.p0[0], y: ruler.p0[1], p: 0.5 }];
     }
-    const l: Live = { kind: 'stroke', id: e.pointerId, stroke, predicted: [], ruler, lastScreen: [p.x, p.y], timer: 0, preview: null };
+    const l: Live = { kind: 'stroke', id: e.pointerId, stroke, predicted: [], ruler, lastScreen: [p.x, p.y], timer: 0, preview: null, lineMode: false };
     live.current = l;
     armHold(l);
     scheduleLive();
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'pen') guard.current.pen(e.buttons ? 'move' : 'hover', e.pointerId);
+    else if (e.pointerType === 'touch' && guard.current.isIgnored(e.pointerId)) return;
     const known = pointers.current.get(e.pointerId);
     const p = local(e);
     if (known) {
@@ -494,6 +532,13 @@ export function Board() {
           scheduleLive();
           return;
         }
+        if (l.lineMode) {
+          const a = stroke.pts[0];
+          const end = snapLineEnd(a, { x: w[0], y: w[1] });
+          l.preview = [{ x: a.x, y: a.y, p: 0.5 }, { x: end.x, y: end.y, p: 0.5 }];
+          scheduleLive();
+          return;
+        }
         const vp = st.viewport;
         for (const ev of list) {
           const q = local(ev);
@@ -517,6 +562,12 @@ export function Board() {
   };
 
   const finish = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' && guard.current.isIgnored(e.pointerId)) {
+      guard.current.touchEnd(e.pointerId);
+      return;
+    }
+    if (e.pointerType === 'pen') guard.current.pen('up', e.pointerId);
+    else if (e.pointerType === 'touch') guard.current.touchEnd(e.pointerId);
     pointers.current.delete(e.pointerId);
     const l = live.current;
     const st = useBoard.getState();
@@ -527,8 +578,12 @@ export function Board() {
           break;
         case 'stroke': {
           window.clearTimeout(l.timer);
-          if (l.preview) l.stroke.pts = l.preview;
-          if (l.preview) l.stroke.pen = true;
+          if (l.preview) {
+            l.stroke.pts = l.preview;
+            l.stroke.pen = true;
+          } else if ((l.stroke.smooth ?? 0) > 0 && l.stroke.pts.length > 3) {
+            l.stroke.pts = smoothPoints(l.stroke.pts, Math.round((l.stroke.smooth ?? 0) * 3));
+          }
           st.addItems([l.stroke]);
           break;
         }
@@ -572,11 +627,12 @@ export function Board() {
     if (e.pointerType === 'touch') {
       resetGesture();
       const t = tap.current;
-      if (touchPoints().length === 0 && !t.moved && t.max >= 2 && performance.now() - t.t0 < 350) {
+      const deliberate = t.spread >= 40 && !guard.current.penActive; // two/three fingers set apart, pen not around
+      if (touchPoints().length === 0 && !t.moved && t.max >= 2 && deliberate && performance.now() - t.t0 < 350) {
         if (t.max === 2) st.undo();
         else st.redo();
       }
-      if (touchPoints().length === 0) tap.current = { t0: 0, max: 0, moved: false };
+      if (touchPoints().length === 0) tap.current = { t0: 0, max: 0, moved: false, spread: Infinity };
     }
   };
 

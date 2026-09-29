@@ -8,9 +8,11 @@ Dữ liệu lưu ngay trên thiết bị (IndexedDB). Cài lên màn hình chín
 
 **Vẽ tay**
 - Nét bút mực theo áp lực Apple Pencil (Pointer Events, gộp điểm + dự đoán điểm để giảm độ trễ), lưu dạng vector nên phóng to không vỡ.
-- Chống tì tay: sau khi phát hiện bút, ngón tay chỉ **kéo và chụm hai ngón để thu phóng**, không để lại nét. Nút "Chỉ Pencil" bật/tắt thủ công. Đầu tẩy của Pencil cũng được nhận.
+- **Chống tì tay**: bộ lọc riêng (`canvas/palm.ts`). Khi bút đang chạm, đang lơ lửng (iPad Pro có hover) hoặc vừa nhấc trong vòng 0,5 giây, **mọi điểm chạm bị bỏ qua hoàn toàn**: không vẽ, không kéo, không thu phóng, không kích hoạt hoàn tác. Lòng bàn tay đã đặt sẵn khi bút hạ xuống cũng bị loại bỏ. Thiết bị cảm ứng mở lên ở chế độ **Chỉ Pencil** (ngón tay chỉ kéo và chụm hai ngón để thu phóng; lựa chọn được nhớ); lần đầu chạm ngón có gợi ý cách bật vẽ bằng ngón. Chạm hai/ba ngón hoàn tác/làm lại chỉ tính khi hai ngón cách nhau ≥ 40 px và bút không ở gần. Đầu tẩy của Pencil cũng được nhận.
 - Bút, bút dạ quang, tẩy (xoá nguyên nét), 8 màu, độ dày, hoàn tác/làm lại không giới hạn (Ctrl/Cmd+Z, +Shift+Z).
-- **Nắn nét**: vẽ xong, *giữ bút yên ~0,5 giây trước khi nhấc* → nét được nắn thành đoạn thẳng, đường tròn, elip, tam giác/đa giác hoặc hình chữ nhật/vuông chuẩn (xem trước ngay lúc giữ; di chuyển tiếp để huỷ).
+- **Giữ bút để thẳng hoá**: đang vẽ một nét (cong, nguệch ngoạc, thế nào cũng được), *dừng bút ~0,5 giây* → nét thành **đường thẳng từ điểm bắt đầu tới vị trí bút** và tiếp tục bám theo bút cho tới khi nhấc (tự bám 0°/45°/90° khi lệch dưới 3°).
+- **Làm mượt nét** (nút *Mượt*: tắt / vừa / mạnh, được nhớ): ổn định nét bằng bộ lọc của perfect-freehand cộng một bước làm trơn điểm; mỗi nét nhớ mức đã dùng nên xuất SVG/PNG vẫn đúng.
+- **Nắn nét hình khép kín**: vẽ xong, *giữ bút yên ~0,5 giây trước khi nhấc* → nét được nắn thành đoạn thẳng, đường tròn, elip, tam giác/đa giác hoặc hình chữ nhật/vuông chuẩn (xem trước ngay lúc giữ; di chuyển tiếp để huỷ).
 - Nền trắng, ô li, chấm, hoặc hệ trục Oxy.
 
 **Công cụ hình học**
@@ -73,8 +75,8 @@ web/tests/   unit (Vitest) và e2e (Playwright-core)
 
 ## Đã kiểm chứng gì
 
-- **Unit (78)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
-- **E2E (207 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
+- **Unit (90)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
+- **E2E (235 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
 
 ## Tốc độ khởi động
 

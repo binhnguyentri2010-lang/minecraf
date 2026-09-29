@@ -17,6 +17,8 @@ export interface Stroke {
   size: number;
   kind: StrokeKind;
   pen: boolean;
+  /** stabiliser strength 0..1 used when the stroke was drawn (older strokes: 0.4) */
+  smooth?: number;
 }
 
 interface PrimBase {

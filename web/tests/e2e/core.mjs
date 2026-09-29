@@ -31,8 +31,9 @@ await io.drag(io.line([200, 500], [600, 500], 20));
 const hl = (await io.state()).items[1];
 check('highlighter stroke is wide and coloured', hl.kind === 'highlighter' && hl.size >= 14 && hl.color === '#d1242f');
 
-// 4. touch navigates, never draws
+// 4. touch navigates, never draws (a deliberate finger comes >0.5 s after the pen: otherwise it is treated as a palm)
 await io.tool('pen');
+await page.waitForTimeout(650);
 const before = (await io.state()).viewport;
 await io.touch('touchStart', [[400, 650]]);
 for (let i = 1; i <= 6; i++) await io.touch('touchMove', [[400 + i * 10, 650 + i * 5]]);
@@ -61,7 +62,7 @@ await io.touch('touchStart', [[300, 700]]);
 for (let i = 1; i <= 8; i++) await io.touch('touchMove', [[300 + i * 20, 700 + i * 3]]);
 await io.touch('touchEnd', []);
 s = await io.state();
-check('with Pencil-only off, a finger draws', s.items.length === 3 && s.items[2].pen === false);
+check('with Pencil-only off, a finger draws', s.items.length === 3 && s.items[2].pen === false, JSON.stringify({ n: s.items.length, po: s.pencilOnly, last: s.items.at(-1)?.pen, tool: s.tool }));
 
 // 7. persistence (viewport + strokes)
 await page.mouse.move(600, 400);

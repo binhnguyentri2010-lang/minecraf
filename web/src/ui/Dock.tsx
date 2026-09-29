@@ -22,7 +22,7 @@ export function Dock() {
   const s = useBoard(
     (st) => ({
       tool: st.tool, color: st.color, size: st.size, dash: st.dash, snap: st.snap, pencilOnly: st.pencilOnly,
-      ruler: st.ruler, protractor: st.protractor, setTool: st.setTool, setColor: st.setColor, setSize: st.setSize,
+      ruler: st.ruler, protractor: st.protractor, smooth: st.smooth, setSmooth: st.setSmooth, setTool: st.setTool, setColor: st.setColor, setSize: st.setSize,
       setDash: st.setDash, setSnap: st.setSnap, setPencilOnly: st.setPencilOnly, setRuler: st.setRuler, setProtractor: st.setProtractor,
     }),
     shallow,
@@ -61,6 +61,16 @@ export function Dock() {
         <button className={s.protractor ? 'on' : ''} onClick={() => s.setProtractor(s.protractor ? null : { x: boardCenter().x, y: boardCenter().y + 60, rot: 0 })} aria-label="Thước đo góc" title="Thước đo góc" data-testid="protractor">
           {Icons.protractor}
           <span className="lbl">Đo góc</span>
+        </button>
+        <button
+          className={s.smooth > 0 ? 'on' : ''}
+          onClick={() => s.setSmooth(s.smooth === 0 ? 0.5 : s.smooth < 1 ? 1 : 0)}
+          aria-label="Làm mượt nét"
+          title="Làm mượt nét: tắt, vừa, mạnh"
+          data-testid="smooth"
+        >
+          {Icons.smooth}
+          <span className="lbl">Mượt: {s.smooth === 0 ? 'tắt' : s.smooth < 1 ? 'vừa' : 'mạnh'}</span>
         </button>
         <button className={s.snap ? 'on' : ''} onClick={() => s.setSnap(!s.snap)} aria-label="Nắn nét" title="Giữ bút yên cuối nét để nắn thành đường thẳng, tròn, elip, đa giác" data-testid="snap">
           {Icons.snap}

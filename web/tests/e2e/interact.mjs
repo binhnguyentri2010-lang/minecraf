@@ -165,7 +165,8 @@ await io.drag(io.line(p0, [p0[0] + dir[0] * 150 + 5, p0[1] + dir[1] * 150 + 40],
 it = await lastItem();
 const ang = Math.atan2(it.pts[1].y - it.pts[0].y, it.pts[1].x - it.pts[0].x);
 check('line drawn along the rotated ruler follows its angle', it.pts.length === 2 && near(ang, rr.rot, 0.005), `ang=${ang.toFixed(4)} rot=${rr.rot.toFixed(4)}`);
-// finger drags the ruler (does not pan the board)
+// finger drags the ruler (does not pan the board); wait out the palm window after the last pen stroke
+await page.waitForTimeout(650);
 const vp0 = (await io.state()).viewport;
 const body = [rr.x + dir[0] * 200 - Math.sin(rr.rot) * 32, rr.y + dir[1] * 200 + Math.cos(rr.rot) * 32];
 await io.touch('touchStart', [body]);

@@ -72,6 +72,7 @@ check('tapping empty space clears the selection', s.selection.length === 0);
 
 // ---- multi-finger taps (GoodNotes): 2 fingers = undo, 3 fingers = redo
 await io.tool('pen');
+await page.waitForTimeout(650); // fingers right after the pen would be treated as a palm
 const u0 = (await io.state()).undo;
 await io.touch('touchStart', [[300, 600], [400, 600]]);
 await io.touch('touchEnd', []);

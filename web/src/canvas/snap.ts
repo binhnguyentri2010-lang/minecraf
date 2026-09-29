@@ -273,3 +273,14 @@ export function recognize(raw: XY[]): Recognized | null {
   }
   return null;
 }
+
+/** Straight line from `a` to `b` (hold-to-straighten); snaps to 0°/45°/90°… when within `tolDeg`. */
+export function snapLineEnd(a: XY, b: XY, tolDeg = 3): XY {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.hypot(dx, dy);
+  if (len === 0) return { ...b };
+  const ang = Math.atan2(dy, dx);
+  const q = Math.round(ang / (Math.PI / 4)) * (Math.PI / 4);
+  if (Math.abs(ang - q) > (tolDeg * Math.PI) / 180) return { ...b };
+  return { x: a.x + Math.cos(q) * len, y: a.y + Math.sin(q) * len };
+}
