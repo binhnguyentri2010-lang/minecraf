@@ -1,0 +1,74 @@
+:root {
+  color-scheme: dark;
+  --glass: rgba(28, 30, 38, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --fg: #f2f4f8;
+  --accent: #6cb6ff;
+  font-family: -apple-system, 'SF Pro Text', system-ui, 'Segoe UI', sans-serif;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body, #root { margin: 0; height: 100%; overflow: hidden; background: #0b0d12; overscroll-behavior: none; }
+body { position: fixed; inset: 0; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+.board { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
+.board canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+.glass {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+.toolbar {
+  position: fixed;
+  left: 50%;
+  bottom: max(14px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  max-width: calc(100vw - 24px);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 8px 10px;
+  border-radius: 22px;
+  color: var(--fg);
+  touch-action: manipulation;
+}
+.group { display: flex; align-items: center; gap: 4px; padding: 0 6px; }
+.group + .group { border-left: 1px solid var(--glass-border); }
+.toolbar button, .toolbar select {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+.toolbar select { background: rgba(255, 255, 255, 0.08); }
+.toolbar button:hover { background: rgba(255, 255, 255, 0.1); }
+.toolbar button.on { background: rgba(108, 182, 255, 0.28); color: #fff; }
+.toolbar button:disabled { opacity: 0.35; cursor: default; }
+.toolbar .swatch {
+  min-width: 32px;
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+}
+.toolbar .swatch.on { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+.toolbar input[type='range'] { width: 90px; accent-color: var(--accent); }
+
+@media (max-width: 700px) {
+  .toolbar { border-radius: 18px; padding: 6px; }
+  .group { padding: 0 2px; }
+  .toolbar button { padding: 0 8px; font-size: 14px; }
+  .toolbar input[type='range'] { width: 64px; }
+}

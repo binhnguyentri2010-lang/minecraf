@@ -1,0 +1,15 @@
+{
+  "name": "Bảng Toán",
+  "short_name": "Bảng Toán",
+  "description": "Bảng vẽ toán học cho Apple Pencil",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0d12",
+  "theme_color": "#0b0d12",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" }
+  ]
+}
