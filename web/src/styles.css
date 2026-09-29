@@ -203,3 +203,20 @@ button.danger { background: var(--danger) !important; color: #200 !important; }
 .selmenu button:hover { background: rgba(255, 255, 255, 0.1); }
 .selmenu button.del { color: var(--danger); }
 @media (max-width: 760px) { .selmenu button span { display: none; } .selmenu button { padding: 0 10px; } }
+
+/* ---------- dialogs: live preview + symbol palette ---------- */
+.modal { width: min(560px, 100%); }
+.preview { display: block; width: 100%; border-radius: 14px; border: 1px solid var(--glass-border); background: #fbfbf8; }
+.field.big input { min-height: 50px; font-size: 18px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.field.size { gap: 12px; }
+.field.size input { flex: 1; min-height: 0; width: auto; padding: 0; border: 0; background: none; }
+.field.size output { width: 32px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+h3.sub { margin: 4px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.palette-group { display: flex; flex-direction: column; gap: 6px; }
+.palette { display: flex; flex-wrap: wrap; gap: 6px; }
+.palette button {
+  min-width: 46px; min-height: 46px; padding: 0 10px; border: 1px solid var(--glass-border); border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07); cursor: pointer; font-size: 21px; font-family: 'Times New Roman', 'STIX Two Text', serif;
+}
+.palette button:hover, .palette button:active { border-color: var(--accent); background: rgba(108, 182, 255, 0.16); }
+.chips button { font-family: inherit; font-size: 14px; }

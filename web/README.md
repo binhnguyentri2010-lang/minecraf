@@ -34,7 +34,7 @@ Dữ liệu lưu ngay trên thiết bị (IndexedDB). Cài lên màn hình chín
 | Lượng giác (3) | đường tròn lượng giác kéo được góc α (sin, cos, tan, cot hiển thị số), bảng giá trị lượng giác, tỉ số lượng giác trong tam giác vuông |
 | Khác (8) | vectơ, tổng hai vectơ (hình bình hành), quy tắc ba điểm, trục số (khoảng/đoạn), Venn 2 và 3 tập, sơ đồ cây xác suất, bảng biến thiên |
 
-**Công thức**: hộp *Công thức* nhận cú pháp giống LaTeX (`\frac{a}{b}`, `\sqrt{x}`, `x^2`, `x_1`, `\vec{AB}`, `\alpha`, `\pi`, `\le`, `\cap`, `\perp`, `\parallel`…). Ô *Đồ thị* nhận biểu thức như `2x+1`, `x^2-2x-3`, `sin(x)/x`, `1/(x-1)`, `log2(x)`; sai cú pháp sẽ báo lỗi rõ ràng (bộ phân tích tự viết, không dùng `eval`).
+**Công thức**: hộp *Công thức* có ô **xem trước ngay khi gõ**, bảng ký hiệu bấm là chèn (phân số, căn, mũ, chỉ số, vectơ, chữ Hy Lạp, ≤ ≥ ≠, ∈ ∩ ∪, ⊥ ∥…; bôi đen một đoạn rồi bấm mẫu để bọc đoạn đó), mẫu có tên tiếng Việt và thanh chỉnh cỡ chữ. Cú pháp giống LaTeX (`\frac{a}{b}`, `\sqrt{x}`, `x^2`, `x_1`, `\vec{AB}`, `\alpha`, `\pi`, `\le`, `\cap`, `\perp`, `\parallel`…). Ô *Đồ thị* có xem trước đường cong và các mẫu (Parabol, Sin, Phân thức…), nhận biểu thức như `2x+1`, `x^2-2x-3`, `sin(x)/x`, `1/(x-1)`, `log2(x)`; sai cú pháp sẽ báo lỗi rõ ràng (bộ phân tích tự viết, không dùng `eval`).
 
 **Nhiều bảng + xuất file**: tạo/đổi tên/xoá bảng; xuất **PNG**, **SVG**, **PDF** (bảng hiện tại hoặc tất cả các bảng), chia sẻ qua bảng chia sẻ của iPad.
 
@@ -74,7 +74,7 @@ web/tests/   unit (Vitest) và e2e (Playwright-core)
 ## Đã kiểm chứng gì
 
 - **Unit (78)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
-- **E2E (180 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
+- **E2E (207 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
 
 ## Giới hạn / chưa xác minh
 

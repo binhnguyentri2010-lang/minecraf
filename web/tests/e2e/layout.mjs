@@ -68,6 +68,16 @@ for (const [name, vp] of devices) {
   const modal = await rect(page, '.modal');
   check(`${name}: graph dialog fits`, inside(modal, vp.width, vp.height), JSON.stringify(modal));
   await page.screenshot({ path: `${SHOTS}/layout-${name}-graph.png` });
+  await page.getByTestId('open-graph').click().catch(() => {});
+  await page.keyboard.press('Escape');
+  await page.getByTestId('open-text').click();
+  const tm = await rect(page, '.modal');
+  check(`${name}: formula dialog fits and scrolls`, inside(tm, vp.width, vp.height), JSON.stringify(tm));
+  const tsc = await page.evaluate(() => { const m = document.querySelector('.modal'); return m.scrollHeight <= m.clientHeight || getComputedStyle(m).overflowY === 'auto'; });
+  check(`${name}: formula dialog content reachable`, tsc);
+  const symSmall = await page.evaluate(() => [...document.querySelectorAll('.palette button')].filter((b) => Math.min(b.getBoundingClientRect().width, b.getBoundingClientRect().height) < 44).length);
+  check(`${name}: symbol buttons are touch-sized`, symSmall === 0, String(symSmall));
+  await page.screenshot({ path: `${SHOTS}/layout-${name}-formula.png` });
   check(`${name}: no console errors`, errors.length === 0, errors.join('|'));
   await browser.close();
 }
