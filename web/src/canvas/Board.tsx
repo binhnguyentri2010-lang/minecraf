@@ -3,7 +3,7 @@ import {
   RULER, aidHit, aidPivot, aidToWorld, drawProtractor, drawRuler, snapToRuler, type AidName,
 } from './aids';
 import { uid } from './id';
-import { smoothPoints, clampScale, screenToWorld, transformViewport } from './geometry';
+import { smoothPoints, smoothPasses, clampScale, screenToWorld, transformViewport } from './geometry';
 import { itemBounds, itemHit, similarity, transformItem } from './objects';
 import { itemsInLasso } from './lasso';
 import { drawMarquee, drawSelection, rectsIntersect, selectionGeo, shapeFromDrag, type DragShape } from './overlay';
@@ -90,7 +90,9 @@ export function Board() {
     if (st.ruler) drawRuler(ctx, st.ruler, vp.scale);
     const l = live.current;
     if (l?.kind === 'stroke') {
-      const pts = l.preview ?? [...l.stroke.pts, ...l.predicted];
+      // the live line is smoothed exactly like the committed one, so nothing jumps when the pen lifts
+      const shaped = smoothPasses(l.stroke.smooth) && l.stroke.pts.length > 3 ? smoothPoints(l.stroke.pts, smoothPasses(l.stroke.smooth)) : l.stroke.pts;
+      const pts = l.preview ?? [...shaped, ...l.predicted];
       drawStroke(ctx, { ...l.stroke, pts, pen: l.preview ? true : l.stroke.pen }, false);
     } else if (l?.kind === 'shape') {
       const o = shapeFromDrag(l.tool, l.start, l.cur, { id: 'preview', seq: 0, color: st.color, lw: st.size, dash: st.dash });
@@ -582,7 +584,7 @@ export function Board() {
             l.stroke.pts = l.preview;
             l.stroke.pen = true;
           } else if ((l.stroke.smooth ?? 0) > 0 && l.stroke.pts.length > 3) {
-            l.stroke.pts = smoothPoints(l.stroke.pts, Math.round((l.stroke.smooth ?? 0) * 3));
+            l.stroke.pts = smoothPoints(l.stroke.pts, smoothPasses(l.stroke.smooth));
           }
           st.addItems([l.stroke]);
           break;
