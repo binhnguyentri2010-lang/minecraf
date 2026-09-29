@@ -17,7 +17,9 @@ const waitFor = async (url) => {
 };
 
 let failed = 0;
-const dev = spawn('npx', ['vite', '--port', '5188', '--strictPort'], { stdio: 'ignore' });
+// The interaction suites run against the *shipping* bundle (Preact, minified) built with the test hooks enabled.
+if ((await run('node', ['node_modules/vite/bin/vite.js', 'build', '--outDir', 'dist-e2e', '--emptyOutDir'], { VITE_E2E: '1' })) !== 0) process.exit(1);
+const dev = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--outDir', 'dist-e2e', '--port', '5188', '--strictPort'], { stdio: 'ignore' });
 try {
   await waitFor('http://localhost:5188/');
   for (const f of ['core', 'interact', 'lasso', 'layout']) {
@@ -28,7 +30,7 @@ try {
   dev.kill();
 }
 if ((await run('npm', ['run', 'build'])) !== 0) process.exit(1);
-const prev = spawn('npx', ['vite', 'preview', '--port', '5189', '--strictPort'], { stdio: 'ignore' });
+const prev = spawn('node', ['node_modules/vite/bin/vite.js', 'preview', '--port', '5189', '--strictPort'], { stdio: 'ignore' });
 try {
   await waitFor('http://localhost:5189/');
   console.log('\n=== prod ===');

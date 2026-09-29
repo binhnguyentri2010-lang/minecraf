@@ -84,14 +84,21 @@ export async function restore() {
   if (meta && Array.isArray(meta.list) && meta.list.length) {
     const cur = meta.list.find((b) => b.id === meta.current) ?? meta.list[0];
     const snap = await readSnapshot(cur.id);
+    const early = useBoard.getState().items; // strokes drawn while storage was still loading
     st.setBoards(meta.list, cur.id);
-    if (snap) st.load(snap);
+    if (snap) {
+      const merged = early.map((i) => ({ ...i, seq: i.seq + snap.seq }));
+      st.load({ ...snap, items: [...snap.items, ...merged], seq: snap.seq + (early.length ? Math.max(...early.map((i) => i.seq)) : 0) });
+    } else if (early.length) await saveCurrent();
     return;
   }
   const legacy = normalizeSnapshot(await safe(() => get(LEGACY_KEY), undefined));
   const id = uid();
   st.setBoards([{ id, name: 'Bảng 1', updated: Date.now() }], id);
-  if (legacy) st.load(legacy);
+  if (legacy) {
+    const early = useBoard.getState().items;
+    st.load({ ...legacy, items: [...legacy.items, ...early.map((i) => ({ ...i, seq: i.seq + legacy.seq }))] });
+  }
   await saveCurrent();
 }
 

@@ -220,3 +220,8 @@ h3.sub { margin: 4px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.0
 }
 .palette button:hover, .palette button:active { border-color: var(--accent); background: rgba(108, 182, 255, 0.16); }
 .chips button { font-family: inherit; font-size: 14px; }
+
+/* ---------- instant first paint while the app starts ---------- */
+#boot { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: space-between; background: #fbfbf8; color: #3b4252; padding: calc(8px + var(--safe-t)) 8px calc(10px + var(--safe-b)); }
+#boot b { font: 600 20px/1 -apple-system, 'SF Pro Text', system-ui, sans-serif; letter-spacing: 0.01em; }
+#boot i { display: block; width: min(720px, calc(100vw - 16px)); height: 56px; border-radius: 22px; background: rgba(26, 28, 36, 0.66); }

@@ -49,7 +49,7 @@ npm test           # unit test (Vitest)
 npm run e2e        # e2e Chromium: mô phỏng bút/cảm ứng, bố cục 6 kích thước, bản production + offline
 ```
 
-`npm run e2e` cần Chromium: đặt `CHROME=/đường/dẫn/chrome` hoặc dùng `npx playwright-core install chromium`.
+`npm run e2e` tự build bản phát hành (kèm móc kiểm thử) rồi chạy các bộ kiểm thử trên đó, và cần Chromium: đặt `CHROME=/đường/dẫn/chrome` hoặc dùng `npx playwright-core install chromium`.
 
 ## Triển khai miễn phí (GitHub Pages)
 
@@ -75,6 +75,13 @@ web/tests/   unit (Vitest) và e2e (Playwright-core)
 
 - **Unit (78)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
 - **E2E (207 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
+
+## Tốc độ khởi động
+
+- Bản phát hành dùng **Preact** (cùng API với React, nhẹ hơn nhiều): JS còn 153 KB (nén ~56 KB), so với 271 KB (~92 KB) khi dùng React. Khi phát triển và kiểm tra kiểu vẫn dùng React thật (`REACT_BUNDLE=1 npm run build` để build bằng React).
+- Khung chờ hiện ngay từ HTML, giao diện dựng ngay không chờ đọc IndexedDB; bảng đã lưu được nạp nền rồi vẽ khi sẵn sàng (nét vẽ ngay lúc đó không bị mất).
+- Đo trên Chromium giả lập CPU chậm gấp 4 (trung vị 7 lần): giao diện sẵn sàng sau ~180 ms (React: ~250 ms), khung chờ hiện sau ~60 ms.
+- `scripts/build-artifact.py` gộp bản build thành một file HTML duy nhất (dùng cho Artifact của Claude).
 
 ## Giới hạn / chưa xác minh
 

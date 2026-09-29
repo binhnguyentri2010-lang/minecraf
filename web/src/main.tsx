@@ -9,23 +9,22 @@ import { SHAPES, buildShapeObj, defaultParams } from './shapes/registry';
 import { autosave, restore } from './storage/persist';
 import './styles.css';
 
-if (import.meta.env.DEV) {
+if (import.meta.env.DEV || import.meta.env.VITE_E2E) {
   const w = window as unknown as Record<string, unknown>;
   w.__board = useBoard;
   w.__app = { useBoard, insertShape, SHAPES, buildShapeObj, defaultParams, itemBounds, selectionGeo };
 }
 
-function mount() {
-  autosave();
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-}
+// Show the interface immediately; the saved board is read from storage in the background and drawn when it arrives.
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+requestAnimationFrame(() => document.getElementById('boot')?.remove());
 
-// a storage problem must never leave a blank page: start with an empty board instead
-restore().catch(() => {}).finally(mount);
+// a storage problem must never leave a blank page: keep the empty board
+restore().catch(() => {}).finally(autosave);
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.register('./sw.js').catch(() => {});
