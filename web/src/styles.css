@@ -270,7 +270,7 @@ h3.sub { margin: 4px 0 0; font-size: 12px; font-weight: 600; letter-spacing: 0.0
 
 /* ---------- instant first paint while the app starts ---------- */
 #boot { position: fixed; inset: 0; z-index: 100; background: #fbfbf8; color: #3b4252; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-#boot i { position: absolute; left: 0; right: 0; top: 0; height: 110px; background: #274b7d; }
+#boot i { position: absolute; left: 0; right: 0; top: 0; height: 92px; background: #294c7f; }
 #boot i + b + i { display: none; }
 #boot b { font: 600 20px/1 -apple-system, 'SF Pro Text', system-ui, sans-serif; letter-spacing: 0.01em; }
 
