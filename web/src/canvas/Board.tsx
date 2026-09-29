@@ -1,19 +1,50 @@
 import { useEffect, useRef } from 'react';
-import { clampScale, screenToWorld, strokeHit, transformViewport } from './geometry';
-import { drawBackground, drawStroke, setViewTransform } from './render';
+import {
+  RULER, aidHit, aidPivot, aidToWorld, drawProtractor, drawRuler, snapToRuler, type AidName,
+} from './aids';
+import { uid } from './id';
+import { clampScale, screenToWorld, transformViewport } from './geometry';
+import { itemBounds, itemHit, similarity, transformItem } from './objects';
+import { drawMarquee, drawSelection, rectsIntersect, selectionGeo, shapeFromDrag, type DragShape } from './overlay';
+import { drawBackground, drawItem, drawStroke, drawVisibleItems, setViewTransform } from './render';
+import { recognize } from './snap';
 import { useBoard } from './store';
-import type { Stroke } from './types';
+import type { Aid, Pt, Stroke, V } from './types';
 
 const ERASER_PX = 14;
+const HOLD_MS = 450;
+const ROT_SNAP = (15 * Math.PI) / 180;
 
-interface Live {
-  id: number;
-  erase: boolean;
-  stroke: Stroke | null;
-  predicted: { x: number; y: number; p: number }[];
-}
+type Live =
+  | {
+      kind: 'stroke';
+      id: number;
+      stroke: Stroke;
+      predicted: Pt[];
+      ruler: { p0: V; d: V } | null;
+      lastScreen: V;
+      timer: number;
+      preview: Pt[] | null;
+    }
+  | { kind: 'erase'; id: number }
+  | { kind: 'shape'; id: number; tool: DragShape; start: V; cur: V }
+  | {
+      kind: 'select';
+      id: number;
+      mode: 'move' | 'rotate' | 'scale' | 'marquee';
+      start: V;
+      cur: V;
+      pivot: V;
+      startAngle: number;
+      startDist: number;
+      moved: boolean;
+    }
+  | { kind: 'aid'; id: number; which: AidName; mode: 'body' | 'rotate'; start: V; base: Aid; startAngle: number; pivot: V };
+
+const toPts = (pts: { x: number; y: number }[]): Pt[] => pts.map((p) => ({ x: p.x, y: p.y, p: 0.5 }));
 
 export function Board() {
+  const tool = useBoard((s) => s.tool);
   const wrap = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLCanvasElement>(null);
   const inkRef = useRef<HTMLCanvasElement>(null);
@@ -36,7 +67,7 @@ export function Board() {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ink.width, ink.height);
     setViewTransform(ctx, st.viewport, dpr);
-    for (const s of st.strokes) drawStroke(ctx, s);
+    drawVisibleItems(ctx, st.items, st.viewport, w, h);
   };
 
   const drawLive = () => {
@@ -46,10 +77,25 @@ export function Board() {
     const ctx = c.getContext('2d')!;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);
+    const st = useBoard.getState();
+    const vp = st.viewport;
+    setViewTransform(ctx, vp, size.current.dpr);
+    if (st.protractor) drawProtractor(ctx, st.protractor, vp.scale);
+    if (st.ruler) drawRuler(ctx, st.ruler, vp.scale);
     const l = live.current;
-    if (!l?.stroke) return;
-    setViewTransform(ctx, useBoard.getState().viewport, size.current.dpr);
-    drawStroke(ctx, { ...l.stroke, pts: [...l.stroke.pts, ...l.predicted] }, false);
+    if (l?.kind === 'stroke') {
+      const pts = l.preview ?? [...l.stroke.pts, ...l.predicted];
+      drawStroke(ctx, { ...l.stroke, pts, pen: l.preview ? true : l.stroke.pen }, false);
+    } else if (l?.kind === 'shape') {
+      const o = shapeFromDrag(l.tool, l.start, l.cur, { id: 'preview', seq: 0, color: st.color, lw: st.size, dash: st.dash });
+      drawItem(ctx, o, false);
+    }
+    if (st.tool === 'select' && st.selection.length) {
+      const sel = st.items.filter((i) => st.selection.includes(i.id));
+      const geo = selectionGeo(sel, vp.scale);
+      if (geo) drawSelection(ctx, geo, vp.scale);
+    }
+    if (l?.kind === 'select' && l.mode === 'marquee') drawMarquee(ctx, l.start, l.cur, vp.scale);
   };
 
   const scheduleBase = () => {
@@ -76,9 +122,9 @@ export function Board() {
     ro.observe(el);
     resize();
     const unsub = useBoard.subscribe((s, p) => {
-      if (s.strokes !== p.strokes || s.viewport !== p.viewport || s.background !== p.background)
-        scheduleBase();
-      if (s.viewport !== p.viewport) scheduleLive();
+      if (s.items !== p.items || s.viewport !== p.viewport || s.background !== p.background) scheduleBase();
+      if (s.items !== p.items || s.viewport !== p.viewport || s.selection !== p.selection || s.ruler !== p.ruler || s.protractor !== p.protractor || s.tool !== p.tool)
+        scheduleLive();
     });
 
     const onWheel = (e: WheelEvent) => {
@@ -101,11 +147,24 @@ export function Board() {
     el.addEventListener('gestureend', stopGesture);
 
     const onKey = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
-      e.preventDefault();
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
       const st = useBoard.getState();
-      if (e.shiftKey) st.redo();
-      else st.undo();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) st.redo();
+        else st.undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        st.duplicateSelected();
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (st.selection.length) {
+          e.preventDefault();
+          st.deleteSelected();
+        }
+      } else if (e.key === 'Escape') {
+        st.select([]);
+      }
     };
     window.addEventListener('keydown', onKey);
 
@@ -124,6 +183,10 @@ export function Board() {
   const local = (e: { clientX: number; clientY: number }) => {
     const r = wrap.current!.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+  const world = (sx: number, sy: number): V => {
+    const w = screenToWorld(useBoard.getState().viewport, sx, sy);
+    return [w.x, w.y];
   };
 
   const touchPoints = () => [...pointers.current.values()].filter((p) => p.type === 'touch');
@@ -144,16 +207,92 @@ export function Board() {
     const st = useBoard.getState();
     const w = screenToWorld(st.viewport, sx, sy);
     const r = ERASER_PX / st.viewport.scale;
-    const ids = st.strokes.filter((s) => strokeHit(s, w.x, w.y, r)).map((s) => s.id);
+    const ids = st.items.filter((s) => itemHit(s, w.x, w.y, r)).map((s) => s.id);
     st.removeLive(ids);
   };
 
   const cancelLive = () => {
     const l = live.current;
     if (!l) return;
-    if (l.erase) useBoard.getState().commitErase();
+    const st = useBoard.getState();
+    if (l.kind === 'erase') st.commitErase();
+    if (l.kind === 'select' && l.mode !== 'marquee') st.endEdit();
+    if (l.kind === 'stroke') window.clearTimeout(l.timer);
     live.current = null;
     scheduleLive();
+  };
+
+  const aidAt = (w: V, pointerType: string) => {
+    const st = useBoard.getState();
+    const allowBody = pointerType === 'touch' || st.tool === 'select';
+    for (const which of ['ruler', 'protractor'] as AidName[]) {
+      const a = st[which];
+      if (!a) continue;
+      const hit = aidHit(which, a, w[0], w[1], st.viewport.scale, false);
+      if (hit) return { which, mode: hit };
+    }
+    for (const which of ['ruler', 'protractor'] as AidName[]) {
+      const a = st[which];
+      if (!a) continue;
+      const hit = aidHit(which, a, w[0], w[1], st.viewport.scale, allowBody);
+      if (hit) return { which, mode: hit };
+    }
+    return null;
+  };
+
+  const startAid = (id: number, which: AidName, mode: 'body' | 'rotate', w: V) => {
+    const base = useBoard.getState()[which]!;
+    const pivot = aidPivot(which, base);
+    live.current = { kind: 'aid', id, which, mode, start: w, base, pivot, startAngle: Math.atan2(w[1] - pivot[1], w[0] - pivot[0]) };
+  };
+
+  const startSelect = (id: number, w: V, e: React.PointerEvent) => {
+    const st = useBoard.getState();
+    const vp = st.viewport;
+    const sel = st.items.filter((i) => st.selection.includes(i.id));
+    const geo = selectionGeo(sel, vp.scale);
+    const hitR = 18 / vp.scale;
+    if (geo) {
+      const pivot = geo.center;
+      if (Math.hypot(w[0] - geo.rotate[0], w[1] - geo.rotate[1]) <= hitR) {
+        st.beginEdit();
+        live.current = { kind: 'select', id, mode: 'rotate', start: w, cur: w, pivot, startAngle: Math.atan2(w[1] - pivot[1], w[0] - pivot[0]), startDist: 1, moved: false };
+        return;
+      }
+      if (Math.hypot(w[0] - geo.scale[0], w[1] - geo.scale[1]) <= hitR) {
+        st.beginEdit();
+        live.current = { kind: 'select', id, mode: 'scale', start: w, cur: w, pivot, startAngle: 0, startDist: Math.max(1, Math.hypot(w[0] - pivot[0], w[1] - pivot[1])), moved: false };
+        return;
+      }
+    }
+    let hit = null as (typeof st.items)[number] | null;
+    for (let i = st.items.length - 1; i >= 0; i--) {
+      if (itemHit(st.items[i], w[0], w[1], 8 / vp.scale)) {
+        hit = st.items[i];
+        break;
+      }
+    }
+    if (hit) {
+      if (!st.selection.includes(hit.id)) st.select(e.shiftKey ? [...st.selection, hit.id] : [hit.id]);
+      st.beginEdit();
+      live.current = { kind: 'select', id, mode: 'move', start: w, cur: w, pivot: w, startAngle: 0, startDist: 1, moved: false };
+    } else {
+      if (!e.shiftKey) st.select([]);
+      live.current = { kind: 'select', id, mode: 'marquee', start: w, cur: w, pivot: w, startAngle: 0, startDist: 1, moved: false };
+    }
+    scheduleLive();
+  };
+
+  const armHold = (l: Extract<Live, { kind: 'stroke' }>) => {
+    window.clearTimeout(l.timer);
+    l.timer = window.setTimeout(() => {
+      if (live.current !== l || l.ruler || !useBoard.getState().snap) return;
+      const rec = recognize(l.stroke.pts);
+      if (rec) {
+        l.preview = toPts(rec.pts);
+        scheduleLive();
+      }
+    }, HOLD_MS);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
@@ -162,11 +301,19 @@ export function Board() {
     (e.target as Element).setPointerCapture(e.pointerId);
     const p = local(e);
     pointers.current.set(e.pointerId, { ...p, type: e.pointerType });
+    const w = world(p.x, p.y);
 
     if (e.pointerType === 'touch') {
       const multi = touchPoints().length >= 2;
       if (multi) cancelLive();
-      if (multi || useBoard.getState().pencilOnly) {
+      if (!multi && !live.current) {
+        const a = aidAt(w, 'touch');
+        if (a) {
+          startAid(e.pointerId, a.which, a.mode, w);
+          return;
+        }
+      }
+      if (multi || st.pencilOnly) {
         resetGesture();
         return;
       }
@@ -174,28 +321,44 @@ export function Board() {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     if (live.current) return;
 
-    const erase = st.tool === 'eraser' || (e.buttons & 32) !== 0;
-    if (erase) {
-      live.current = { id: e.pointerId, erase: true, stroke: null, predicted: [] };
+    const a = aidAt(w, e.pointerType);
+    if (a) {
+      startAid(e.pointerId, a.which, a.mode, w);
+      return;
+    }
+
+    if (st.tool === 'select') {
+      startSelect(e.pointerId, w, e);
+      return;
+    }
+    if (st.tool === 'eraser' || (e.buttons & 32) !== 0) {
+      live.current = { kind: 'erase', id: e.pointerId };
       eraseAt(p.x, p.y);
       return;
     }
-    const w = screenToWorld(st.viewport, p.x, p.y);
+    if (st.tool === 'line' || st.tool === 'arrow' || st.tool === 'circle' || st.tool === 'rect') {
+      live.current = { kind: 'shape', id: e.pointerId, tool: st.tool, start: w, cur: w };
+      return;
+    }
     const isPen = e.pointerType === 'pen';
-    live.current = {
-      id: e.pointerId,
-      erase: false,
-      predicted: [],
-      stroke: {
-        id: crypto.randomUUID(),
-        seq: st.nextSeq(),
-        color: st.color,
-        kind: st.tool === 'highlighter' ? 'highlighter' : 'pen',
-        size: st.tool === 'highlighter' ? Math.max(st.size * 5, 14) : st.size,
-        pen: isPen,
-        pts: [{ x: w.x, y: w.y, p: isPen ? e.pressure || 0.5 : 0.5 }],
-      },
+    const stroke: Stroke = {
+      type: 'stroke',
+      id: uid(),
+      seq: st.nextSeq(),
+      color: st.color,
+      kind: st.tool === 'highlighter' ? 'highlighter' : 'pen',
+      size: st.tool === 'highlighter' ? Math.max(st.size * 5, 14) : st.size,
+      pen: isPen,
+      pts: [{ x: w[0], y: w[1], p: isPen ? e.pressure || 0.5 : 0.5 }],
     };
+    let ruler: { p0: V; d: V } | null = null;
+    if (st.ruler) {
+      ruler = snapToRuler(st.ruler, w[0], w[1], 14 / st.viewport.scale);
+      if (ruler) stroke.pts = [{ x: ruler.p0[0], y: ruler.p0[1], p: 0.5 }];
+    }
+    const l: Live = { kind: 'stroke', id: e.pointerId, stroke, predicted: [], ruler, lastScreen: [p.x, p.y], timer: 0, preview: null };
+    live.current = l;
+    armHold(l);
     scheduleLive();
   };
 
@@ -208,8 +371,9 @@ export function Board() {
     }
     const st = useBoard.getState();
 
+    const l = live.current;
     const t = touchPoints();
-    if (e.pointerType === 'touch' && gesture.current && (st.pencilOnly || t.length >= 2)) {
+    if (e.pointerType === 'touch' && gesture.current && !(l && l.id === e.pointerId) && (st.pencilOnly || t.length >= 2)) {
       const g = gesture.current;
       const cx = t.reduce((a, q) => a + q.x, 0) / t.length;
       const cy = t.reduce((a, q) => a + q.y, 0) / t.length;
@@ -221,41 +385,131 @@ export function Board() {
       return;
     }
 
-    const l = live.current;
     if (!l || l.id !== e.pointerId) return;
     const native = e.nativeEvent;
     const evs = native.getCoalescedEvents?.() ?? [];
     const list = evs.length ? evs : [native];
-    if (l.erase) {
-      for (const ev of list) {
-        const q = local(ev);
-        eraseAt(q.x, q.y);
+    const w = world(p.x, p.y);
+
+    switch (l.kind) {
+      case 'erase':
+        for (const ev of list) {
+          const q = local(ev);
+          eraseAt(q.x, q.y);
+        }
+        return;
+      case 'shape':
+        l.cur = w;
+        scheduleLive();
+        return;
+      case 'aid': {
+        const dx = w[0] - l.start[0], dy = w[1] - l.start[1];
+        if (l.mode === 'body') {
+          const next = { ...l.base, x: l.base.x + dx, y: l.base.y + dy };
+          l.which === 'ruler' ? st.setRuler(next) : st.setProtractor(next);
+        } else {
+          const rot = l.base.rot + (Math.atan2(w[1] - l.pivot[1], w[0] - l.pivot[0]) - l.startAngle);
+          let next: Aid = { ...l.base, rot };
+          if (l.which === 'ruler') {
+            const [ox, oy] = aidToWorld({ x: 0, y: 0, rot }, RULER.len / 2, RULER.w / 2);
+            next = { x: l.pivot[0] - ox, y: l.pivot[1] - oy, rot };
+          }
+          l.which === 'ruler' ? st.setRuler(next) : st.setProtractor(next);
+        }
+        return;
       }
-      return;
+      case 'select': {
+        l.cur = w;
+        if (l.mode === 'marquee') {
+          scheduleLive();
+          return;
+        }
+        if (!l.moved) {
+          if (Math.hypot(w[0] - l.start[0], w[1] - l.start[1]) * st.viewport.scale < 3) return;
+          l.moved = true;
+        }
+        let m;
+        if (l.mode === 'move') m = similarity(l.pivot, w[0] - l.start[0], w[1] - l.start[1], 0, 1);
+        else if (l.mode === 'rotate') {
+          let ang = Math.atan2(w[1] - l.pivot[1], w[0] - l.pivot[0]) - l.startAngle;
+          const snapped = Math.round(ang / ROT_SNAP) * ROT_SNAP;
+          if (Math.abs(ang - snapped) < (3 * Math.PI) / 180) ang = snapped;
+          m = similarity(l.pivot, 0, 0, ang, 1);
+        } else {
+          const k = Math.min(20, Math.max(0.1, Math.hypot(w[0] - l.pivot[0], w[1] - l.pivot[1]) / l.startDist));
+          m = similarity(l.pivot, 0, 0, 0, k);
+        }
+        st.applyEdit((it) => transformItem(it, m));
+        return;
+      }
+      case 'stroke': {
+        const stroke = l.stroke;
+        const isPen = e.pointerType === 'pen';
+        if (l.ruler) {
+          const s = (w[0] - l.ruler.p0[0]) * l.ruler.d[0] + (w[1] - l.ruler.p0[1]) * l.ruler.d[1];
+          stroke.pts = [stroke.pts[0], { x: l.ruler.p0[0] + l.ruler.d[0] * s, y: l.ruler.p0[1] + l.ruler.d[1] * s, p: 0.5 }];
+          scheduleLive();
+          return;
+        }
+        const vp = st.viewport;
+        for (const ev of list) {
+          const q = local(ev);
+          const ww = screenToWorld(vp, q.x, q.y);
+          stroke.pts.push({ x: ww.x, y: ww.y, p: isPen ? ev.pressure || 0.5 : 0.5 });
+        }
+        const pred = native.getPredictedEvents?.() ?? [];
+        l.predicted = pred.map((ev) => {
+          const q = local(ev);
+          const ww = screenToWorld(vp, q.x, q.y);
+          return { x: ww.x, y: ww.y, p: isPen ? ev.pressure || 0.5 : 0.5 };
+        });
+        if (Math.hypot(p.x - l.lastScreen[0], p.y - l.lastScreen[1]) > 3) {
+          l.lastScreen = [p.x, p.y];
+          l.preview = null;
+          armHold(l);
+        }
+        scheduleLive();
+      }
     }
-    const stroke = l.stroke!;
-    const vp = st.viewport;
-    const isPen = e.pointerType === 'pen';
-    for (const ev of list) {
-      const q = local(ev);
-      const w = screenToWorld(vp, q.x, q.y);
-      stroke.pts.push({ x: w.x, y: w.y, p: isPen ? ev.pressure || 0.5 : 0.5 });
-    }
-    const pred = native.getPredictedEvents?.() ?? [];
-    l.predicted = pred.map((ev) => {
-      const q = local(ev);
-      const w = screenToWorld(vp, q.x, q.y);
-      return { x: w.x, y: w.y, p: isPen ? ev.pressure || 0.5 : 0.5 };
-    });
-    scheduleLive();
   };
 
   const finish = (e: React.PointerEvent) => {
     pointers.current.delete(e.pointerId);
     const l = live.current;
+    const st = useBoard.getState();
     if (l && l.id === e.pointerId) {
-      if (l.erase) useBoard.getState().commitErase();
-      else if (l.stroke) useBoard.getState().commitStroke(l.stroke);
+      switch (l.kind) {
+        case 'erase':
+          st.commitErase();
+          break;
+        case 'stroke': {
+          window.clearTimeout(l.timer);
+          if (l.preview) l.stroke.pts = l.preview;
+          if (l.preview) l.stroke.pen = true;
+          st.addItems([l.stroke]);
+          break;
+        }
+        case 'shape': {
+          if (Math.hypot(l.cur[0] - l.start[0], l.cur[1] - l.start[1]) * st.viewport.scale > 4) {
+            const o = shapeFromDrag(l.tool, l.start, l.cur, { id: uid(), seq: st.nextSeq(), color: st.color, lw: st.size, dash: st.dash });
+            st.addItems([o]);
+          }
+          break;
+        }
+        case 'select':
+          if (l.mode === 'marquee') {
+            const rect = { minX: Math.min(l.start[0], l.cur[0]), maxX: Math.max(l.start[0], l.cur[0]), minY: Math.min(l.start[1], l.cur[1]), maxY: Math.max(l.start[1], l.cur[1]) };
+            if ((rect.maxX - rect.minX) * st.viewport.scale > 3 || (rect.maxY - rect.minY) * st.viewport.scale > 3) {
+              const ids = st.items.filter((i) => {
+                const b = itemBounds(i);
+                return b && rectsIntersect(b, rect);
+              }).map((i) => i.id);
+              st.select(e.shiftKey ? [...new Set([...st.selection, ...ids])] : ids);
+            }
+          } else st.endEdit();
+          break;
+        default:
+      }
       live.current = null;
       scheduleLive();
     }
@@ -266,6 +520,7 @@ export function Board() {
     <div
       ref={wrap}
       className="board"
+      data-tool={tool}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={finish}
@@ -278,3 +533,4 @@ export function Board() {
     </div>
   );
 }
+

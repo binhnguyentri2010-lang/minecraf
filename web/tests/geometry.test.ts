@@ -3,6 +3,7 @@ import { distToSegment, strokeHit, transformViewport } from '../src/canvas/geome
 import type { Stroke } from '../src/canvas/types';
 
 const stroke = (pts: [number, number][], size = 2): Stroke => ({
+  type: 'stroke',
   id: 's',
   seq: 1,
   color: '#000',
