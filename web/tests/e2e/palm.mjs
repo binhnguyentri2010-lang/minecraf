@@ -135,6 +135,7 @@ await page.waitForFunction(() => window.__app);
 check('the smoothing choice survives a reload', (await page.getByTestId('smooth').innerText()).includes('vừa'));
 
 // 9. Pencil-only preference is remembered
+await page.getByTestId('open-more').click();
 await page.getByTestId('pencil-only').click();
 await page.reload();
 await page.waitForFunction(() => window.__app);

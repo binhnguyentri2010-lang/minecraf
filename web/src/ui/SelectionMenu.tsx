@@ -38,7 +38,7 @@ export function SelectionMenu() {
   const left = Math.min(Math.max(cx, 140), vw - 140);
   // clear of the rotate handle (~45px above the box) and of the scale handle below it
   let ty = top - 112;
-  const minTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-h')) + 10 || 136;
+  const minTop = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hdr-h')) + 64 || 156;
   if (ty < minTop) ty = bottom + 30;
   ty = Math.max(minTop, Math.min(ty, vh - 130));
   return (

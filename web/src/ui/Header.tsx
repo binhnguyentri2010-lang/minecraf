@@ -49,7 +49,6 @@ export function Header() {
             <button className="x" onClick={() => void closeTab(id)} aria-label={`Đóng ${boardName(id)}`} data-testid="tab-close">{Icons.close}</button>
           </div>
         ))}
-        <button className="newtab" onClick={() => void addBoard()} aria-label="Bảng mới" title="Bảng mới" data-testid="add-board">{Icons.add}</button>
       </div>
 
       <div className="gn-toolbar" role="toolbar" aria-label="Công cụ">
@@ -91,10 +90,8 @@ export function Header() {
           </button>
         </div>
         <div className="side right">
-          <button className={s.pencilOnly ? 'sel' : ''} onClick={() => s.setPencilOnly(!s.pencilOnly)} aria-label="Chỉ Pencil" aria-pressed={s.pencilOnly} title="Chỉ Apple Pencil vẽ; ngón tay để kéo/thu phóng" data-testid="pencil-only">
-            {Icons.hand}
-          </button>
           {open('export', 'Xuất', 'share')}
+          <button className="circ" onClick={() => void addBoard()} aria-label="Bảng mới" title="Bảng mới" data-testid="add-board">{Icons.add}</button>
           <span className="pop-anchor right">
             <button className={popover === 'more' ? 'sel' : ''} onClick={() => togglePopover('more')} aria-label="Thêm" title="Nền giấy, xoá bảng" data-testid="open-more">{Icons.more}</button>
             {popover === 'more' && (
@@ -105,6 +102,7 @@ export function Header() {
                     <button key={id} className={s.background === id ? 'sel' : ''} onClick={() => s.setBackground(id)} data-testid={`bg-${id}`}>{label}</button>
                   ))}
                 </div>
+                <button className={`row ${s.pencilOnly ? 'sel' : ''}`} onClick={() => { s.setPencilOnly(!s.pencilOnly); setPopover(null); }} aria-pressed={s.pencilOnly} title="Chỉ Apple Pencil vẽ; ngón tay để kéo/thu phóng" data-testid="pencil-only">{Icons.hand}<span>Chỉ Apple Pencil</span></button>
                 <button className="row" onClick={() => { s.setViewport({ x: 0, y: 0, scale: 1 }); setPopover(null); }}>Thu phóng 100%</button>
                 <button className="row danger" disabled={!s.hasItems} onClick={() => { s.clear(); setPopover(null); }} data-testid="clear-board">Xoá toàn bộ bảng</button>
               </div>

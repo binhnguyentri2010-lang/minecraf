@@ -37,8 +37,8 @@ for (const [name, vp] of devices) {
     return ok(last, c) && ok(lastColor, f);
   });
   check(`${name}: every tool and the last colour are reachable by scrolling`, reach);
-  const rightSide = await page.evaluate(() => ['pencil-only', 'open-export', 'open-more'].every((t) => { const r = document.querySelector(`[data-testid=${t}]`).getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.left >= 0; }));
-  check(`${name}: Pencil-only, export and more stay visible on screen`, rightSide);
+  const rightSide = await page.evaluate(() => ['add-board', 'open-export', 'open-more'].every((t) => { const r = document.querySelector(`[data-testid=${t}]`).getBoundingClientRect(); return r.right <= window.innerWidth + 1 && r.left >= 0; }));
+  check(`${name}: New-board, export and more stay visible on screen`, rightSide);
 
   // ---- library panel (shape gallery)
   await page.getByTestId('open-library').click();

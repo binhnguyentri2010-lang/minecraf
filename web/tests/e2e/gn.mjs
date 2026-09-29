@@ -11,7 +11,7 @@ const waitBoards = (n) => page.waitForFunction((k) => window.__board.getState().
 
 // ---------------------------------------------------------------- header + tabs
 check('header shows the home button, one tab (selected) and the tool row', (await vis('home')) && (await page.getByTestId('tab').count()) === 1 && (await page.locator('.gn-tabs .tab.on').innerText()).includes('Bảng 1'));
-for (const t of ['tool-lasso', 'tool-select', 'tool-pen', 'tool-highlighter', 'tool-eraser', 'open-text', 'open-shapes', 'open-library', 'open-graph', 'ruler', 'protractor', 'pencil-only', 'open-export', 'open-more', 'open-boards'])
+for (const t of ['tool-lasso', 'tool-select', 'tool-pen', 'tool-highlighter', 'tool-eraser', 'open-text', 'open-shapes', 'open-library', 'open-graph', 'ruler', 'protractor', 'add-board', 'open-export', 'open-more', 'open-boards'])
   if (!(await vis(t))) check(`toolbar has ${t}`, false);
 check('the selected tool is highlighted (pen by default)', (await page.getByTestId('tool-pen').getAttribute('class') ?? '').includes('sel') && !(await page.getByTestId('tool-eraser').getAttribute('class') ?? '').includes('sel'));
 await page.getByTestId('tool-eraser').click();

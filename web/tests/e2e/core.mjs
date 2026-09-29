@@ -56,6 +56,7 @@ s = await io.state();
 check('wheel scrolls the board', s.viewport.y < v1.y);
 
 // 6. "Chỉ Pencil" off lets a finger draw
+await page.getByTestId('open-more').click();
 await page.getByTestId('pencil-only').click();
 await page.getByTestId('zoom').click();
 await io.touch('touchStart', [[300, 700]]);
