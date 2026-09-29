@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { smoothPoints } from '../src/canvas/geometry';
+import { smoothPasses, smoothPoints } from '../src/canvas/geometry';
 import { PALM_WINDOW_MS, PalmGuard } from '../src/canvas/palm';
 import { smoothingOptions, strokeOutline } from '../src/canvas/render';
 import { snapLineEnd } from '../src/canvas/snap';
@@ -131,8 +131,8 @@ describe('stroke smoothing', () => {
     expect(smoothingOptions().streamline).toBeCloseTo(smoothingOptions(0.4).streamline); // strokes saved before the setting existed
   });
   it('a stronger setting yields a smoother outline for the same input', () => {
-    const mk = (smooth: number): Stroke => ({ type: 'stroke', id: 's', seq: 1, color: '#000', size: 3, kind: 'pen', pen: true, smooth, pts: noisy });
-    const wiggle = (o: number[][]) => o.slice(2).reduce((s, p, i) => s + Math.abs(p[1] - 2 * o[i + 1][1] + o[i][1]), 0);
+    const mk = (smooth: number): Stroke => ({ type: 'stroke', id: 's', seq: 1, color: '#000', size: 3, kind: 'pen', pen: true, smooth, pts: smoothPoints(noisy, smoothPasses(smooth)) }); // same pipeline as the board: input smoothing, then outline
+    const wiggle = (o: number[][]) => o.slice(2).reduce((s, p, i) => s + Math.abs(p[1] - 2 * o[i + 1][1] + o[i][1]), 0) / o.length; // per point: the outline is densified, so totals are not comparable
     expect(wiggle(strokeOutline(mk(1)))).toBeLessThan(wiggle(strokeOutline(mk(0))));
   });
 });
