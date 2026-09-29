@@ -6,7 +6,7 @@ type Entry =
   | { type: 'add' | 'remove'; items: Item[] }
   | { type: 'update'; before: Item[]; after: Item[] };
 
-export const COLORS = ['#111318', '#1f6feb', '#d1242f', '#1a7f37', '#e16f24', '#8250df'];
+export const COLORS = ['#111318', '#1f6feb', '#d1242f', '#1a7f37', '#e16f24', '#8250df', '#0e7490', '#db2777'];
 
 export interface Snapshot {
   items: Item[];
@@ -39,6 +39,8 @@ interface BoardState {
   protractor: Aid | null;
   boards: BoardMeta[];
   boardId: string;
+  clipboard: Item[];
+  busy: boolean;
 
   nextSeq: () => number;
   setTool: (t: Tool) => void;
@@ -58,6 +60,9 @@ interface BoardState {
   select: (ids: string[]) => void;
   deleteSelected: () => void;
   duplicateSelected: () => void;
+  copySelected: () => void;
+  cutSelected: () => void;
+  paste: () => void;
   beginEdit: () => void;
   applyEdit: (fn: (it: Item) => Item) => void;
   endEdit: () => void;
@@ -70,6 +75,7 @@ interface BoardState {
 }
 
 let pendingRemoved: Item[] = [];
+let pasteCount = 0;
 let editBase: Item[] | null = null;
 let lastPatch: { key: string; time: number; entry: Entry } | null = null;
 
@@ -106,13 +112,15 @@ export const useBoard = create<BoardState>((set, get) => {
     protractor: null,
     boards: [],
     boardId: '',
+    clipboard: [],
+    busy: false,
 
     nextSeq: () => {
       const n = get().seq + 1;
       set({ seq: n });
       return n;
     },
-    setTool: (tool) => set((st) => ({ tool, selection: tool === 'select' ? st.selection : [] })),
+    setTool: (tool) => set((st) => ({ tool, selection: tool === 'select' || tool === 'lasso' ? st.selection : [] })),
     setColor: (color) => {
       // picking a colour while erasing means "draw with it"
       set((st) => ({ color, tool: st.tool === 'eraser' ? 'pen' : st.tool }));
@@ -189,9 +197,36 @@ export const useBoard = create<BoardState>((set, get) => {
       });
     },
 
+    copySelected: () => {
+      const st = get();
+      const sel = st.items.filter((i) => st.selection.includes(i.id));
+      if (!sel.length) return;
+      pasteCount = 0;
+      set({ clipboard: sel });
+    },
+    cutSelected: () => {
+      get().copySelected();
+      get().deleteSelected();
+    },
+    paste: () => {
+      const st = get();
+      if (!st.clipboard.length) return;
+      pasteCount += 1;
+      let seq = st.seq;
+      const off = 24 * pasteCount;
+      const copies = st.clipboard.map((i) => clone(i, ++seq, off, off));
+      set({
+        seq,
+        items: [...st.items, ...copies].sort(bySeq),
+        selection: copies.map((c) => c.id),
+        undoStack: [...st.undoStack, { type: 'add', items: copies }],
+        redoStack: [],
+      });
+    },
     beginEdit: () => {
       const st = get();
       editBase = st.items.filter((i) => st.selection.includes(i.id));
+      set({ busy: true });
     },
     applyEdit: (fn) => {
       if (!editBase) return;
@@ -202,6 +237,7 @@ export const useBoard = create<BoardState>((set, get) => {
       if (!editBase) return;
       const base = editBase;
       editBase = null;
+      set({ busy: false });
       const st = get();
       const ids = idSet(base);
       const after = st.items.filter((i) => ids.has(i.id));
@@ -273,7 +309,7 @@ export const useBoard = create<BoardState>((set, get) => {
       pendingRemoved = [];
       editBase = null;
       lastPatch = null;
-      set({ items: s.items, background: s.background, viewport: s.viewport, seq: s.seq, selection: [], undoStack: [], redoStack: [] });
+      set({ busy: false, items: s.items, background: s.background, viewport: s.viewport, seq: s.seq, selection: [], undoStack: [], redoStack: [] });
     },
     setBoards: (boards, boardId) => set({ boards, boardId }),
   };

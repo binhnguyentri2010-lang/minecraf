@@ -5,6 +5,7 @@ import {
 import { uid } from './id';
 import { clampScale, screenToWorld, transformViewport } from './geometry';
 import { itemBounds, itemHit, similarity, transformItem } from './objects';
+import { itemsInLasso } from './lasso';
 import { drawMarquee, drawSelection, rectsIntersect, selectionGeo, shapeFromDrag, type DragShape } from './overlay';
 import { drawBackground, drawItem, drawStroke, drawVisibleItems, setViewTransform } from './render';
 import { recognize } from './snap';
@@ -39,6 +40,7 @@ type Live =
       startDist: number;
       moved: boolean;
     }
+  | { kind: 'lasso'; id: number; pts: V[] }
   | { kind: 'aid'; id: number; which: AidName; mode: 'body' | 'rotate'; start: V; base: Aid; startAngle: number; pivot: V };
 
 const toPts = (pts: { x: number; y: number }[]): Pt[] => pts.map((p) => ({ x: p.x, y: p.y, p: 0.5 }));
@@ -50,7 +52,7 @@ export function Board() {
   const inkRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<HTMLCanvasElement>(null);
   const size = useRef({ w: 0, h: 0, dpr: 1 });
-  const pointers = useRef(new Map<number, { x: number; y: number; type: string }>());
+  const pointers = useRef(new Map<number, { x: number; y: number; sx: number; sy: number; type: string }>());
   const live = useRef<Live | null>(null);
   const gesture = useRef<{ cx: number; cy: number; d: number } | null>(null);
   const raf = useRef({ base: 0, live: 0 });
@@ -90,12 +92,28 @@ export function Board() {
       const o = shapeFromDrag(l.tool, l.start, l.cur, { id: 'preview', seq: 0, color: st.color, lw: st.size, dash: st.dash });
       drawItem(ctx, o, false);
     }
-    if (st.tool === 'select' && st.selection.length) {
+    if ((st.tool === 'select' || st.tool === 'lasso') && st.selection.length) {
       const sel = st.items.filter((i) => st.selection.includes(i.id));
       const geo = selectionGeo(sel, vp.scale);
       if (geo) drawSelection(ctx, geo, vp.scale);
     }
     if (l?.kind === 'select' && l.mode === 'marquee') drawMarquee(ctx, l.start, l.cur, vp.scale);
+    if (l?.kind === 'lasso' && l.pts.length > 1) {
+      const px = 1 / vp.scale;
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(l.pts[0][0], l.pts[0][1]);
+      for (const q of l.pts) ctx.lineTo(q[0], q[1]);
+      ctx.closePath();
+      ctx.fillStyle = 'rgba(37, 99, 235, 0.08)';
+      ctx.fill();
+      ctx.setLineDash([7 * px, 5 * px]);
+      ctx.lineWidth = 1.6 * px;
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+      ctx.restore();
+    }
   };
 
   const scheduleBase = () => {
@@ -154,6 +172,14 @@ export function Board() {
         e.preventDefault();
         if (e.shiftKey) st.redo();
         else st.undo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        st.copySelected();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+        e.preventDefault();
+        st.cutSelected();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        st.paste();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         st.duplicateSelected();
@@ -191,6 +217,9 @@ export function Board() {
 
   const touchPoints = () => [...pointers.current.values()].filter((p) => p.type === 'touch');
 
+  // GoodNotes-style: tap with two fingers = undo, three fingers = redo
+  const tap = useRef({ t0: 0, max: 0, moved: false });
+
   const resetGesture = () => {
     const t = touchPoints();
     if (t.length === 0) {
@@ -224,7 +253,7 @@ export function Board() {
 
   const aidAt = (w: V, pointerType: string) => {
     const st = useBoard.getState();
-    const allowBody = pointerType === 'touch' || st.tool === 'select';
+    const allowBody = pointerType === 'touch' || st.tool === 'select' || st.tool === 'lasso';
     for (const which of ['ruler', 'protractor'] as AidName[]) {
       const a = st[which];
       if (!a) continue;
@@ -272,13 +301,16 @@ export function Board() {
         break;
       }
     }
+    // Lasso tool: only an already-selected item can be dragged; starting on anything else draws the loop (like GoodNotes)
+    if (hit && st.tool === 'lasso' && !st.selection.includes(hit.id)) hit = null;
     if (hit) {
       if (!st.selection.includes(hit.id)) st.select(e.shiftKey ? [...st.selection, hit.id] : [hit.id]);
       st.beginEdit();
       live.current = { kind: 'select', id, mode: 'move', start: w, cur: w, pivot: w, startAngle: 0, startDist: 1, moved: false };
     } else {
       if (!e.shiftKey) st.select([]);
-      live.current = { kind: 'select', id, mode: 'marquee', start: w, cur: w, pivot: w, startAngle: 0, startDist: 1, moved: false };
+      if (st.tool === 'lasso') live.current = { kind: 'lasso', id, pts: [w] };
+      else live.current = { kind: 'select', id, mode: 'marquee', start: w, cur: w, pivot: w, startAngle: 0, startDist: 1, moved: false };
     }
     scheduleLive();
   };
@@ -300,10 +332,12 @@ export function Board() {
     if (e.pointerType === 'pen' && !st.pencilOnly) st.setPencilOnly(true);
     (e.target as Element).setPointerCapture(e.pointerId);
     const p = local(e);
-    pointers.current.set(e.pointerId, { ...p, type: e.pointerType });
+    pointers.current.set(e.pointerId, { ...p, sx: p.x, sy: p.y, type: e.pointerType });
     const w = world(p.x, p.y);
 
     if (e.pointerType === 'touch') {
+      if (touchPoints().length === 1) tap.current = { t0: performance.now(), max: 1, moved: false };
+      else tap.current.max = Math.max(tap.current.max, touchPoints().length);
       const multi = touchPoints().length >= 2;
       if (multi) cancelLive();
       if (!multi && !live.current) {
@@ -327,7 +361,7 @@ export function Board() {
       return;
     }
 
-    if (st.tool === 'select') {
+    if (st.tool === 'select' || st.tool === 'lasso') {
       startSelect(e.pointerId, w, e);
       return;
     }
@@ -370,6 +404,7 @@ export function Board() {
       known.y = p.y;
     }
     const st = useBoard.getState();
+    if (e.pointerType === 'touch' && known && Math.hypot(p.x - known.sx, p.y - known.sy) > 12) tap.current.moved = true;
 
     const l = live.current;
     const t = touchPoints();
@@ -415,6 +450,14 @@ export function Board() {
             next = { x: l.pivot[0] - ox, y: l.pivot[1] - oy, rot };
           }
           l.which === 'ruler' ? st.setRuler(next) : st.setProtractor(next);
+        }
+        return;
+      }
+      case 'lasso': {
+        const last = l.pts[l.pts.length - 1];
+        if (Math.hypot(w[0] - last[0], w[1] - last[1]) * st.viewport.scale > 2) {
+          l.pts.push(w);
+          scheduleLive();
         }
         return;
       }
@@ -496,6 +539,19 @@ export function Board() {
           }
           break;
         }
+        case 'lasso': {
+          const xs = l.pts.map((q) => q[0]), ys = l.pts.map((q) => q[1]);
+          const tiny = (Math.max(...xs) - Math.min(...xs) + Math.max(...ys) - Math.min(...ys)) * st.viewport.scale < 8;
+          if (tiny) {
+            // a tap with the lasso selects the item under the pen
+            const top = [...st.items].reverse().find((i) => itemHit(i, l.pts[0][0], l.pts[0][1], 8 / st.viewport.scale));
+            st.select(top ? (e.shiftKey ? [...new Set([...st.selection, top.id])] : [top.id]) : []);
+            break;
+          }
+          const ids = itemsInLasso(st.items, l.pts);
+          st.select(e.shiftKey ? [...new Set([...st.selection, ...ids])] : ids);
+          break;
+        }
         case 'select':
           if (l.mode === 'marquee') {
             const rect = { minX: Math.min(l.start[0], l.cur[0]), maxX: Math.max(l.start[0], l.cur[0]), minY: Math.min(l.start[1], l.cur[1]), maxY: Math.max(l.start[1], l.cur[1]) };
@@ -513,7 +569,15 @@ export function Board() {
       live.current = null;
       scheduleLive();
     }
-    if (e.pointerType === 'touch') resetGesture();
+    if (e.pointerType === 'touch') {
+      resetGesture();
+      const t = tap.current;
+      if (touchPoints().length === 0 && !t.moved && t.max >= 2 && performance.now() - t.t0 < 350) {
+        if (t.max === 2) st.undo();
+        else st.redo();
+      }
+      if (touchPoints().length === 0) tap.current = { t0: 0, max: 0, moved: false };
+    }
   };
 
   return (

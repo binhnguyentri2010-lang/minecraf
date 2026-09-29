@@ -21,7 +21,7 @@ button, input, select { font: inherit; color: inherit; }
 input[type='text'], input[type='search'] { -webkit-user-select: text; user-select: text; }
 
 .board { position: absolute; inset: 0; touch-action: none; cursor: crosshair; }
-.board[data-tool='select'] { cursor: default; }
+.board[data-tool='select'], .board[data-tool='lasso'] { cursor: default; }
 .board canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 .glass {
@@ -79,7 +79,8 @@ button:disabled { opacity: 0.35; cursor: default; }
   border: 2px solid rgba(255, 255, 255, 0.35); flex: none; margin: 0 2px;
 }
 .dock .swatch.on { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); background-clip: padding-box; }
-.colors { gap: 6px; }
+.colors { gap: 4px; }
+.dock .colors .swatch { margin: 0; }
 input[type='range'] { accent-color: var(--accent); }
 .dock input[type='range'] { width: 84px; }
 
@@ -189,3 +190,16 @@ button.danger { background: var(--danger) !important; color: #200 !important; }
 @media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
   .panel { width: min(340px, 44vw); }
 }
+
+/* ---------- selection menu (GoodNotes-style) ---------- */
+.selmenu {
+  position: fixed; z-index: 24; transform: translateX(-50%); display: flex; gap: 2px; padding: 4px; border-radius: 16px;
+  background: var(--glass-strong); max-width: calc(100vw - 16px); overflow-x: auto; scrollbar-width: none;
+}
+.selmenu button {
+  display: flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 12px; border: 0; border-radius: 12px;
+  background: transparent; cursor: pointer; white-space: nowrap; font-size: 14px;
+}
+.selmenu button:hover { background: rgba(255, 255, 255, 0.1); }
+.selmenu button.del { color: var(--danger); }
+@media (max-width: 760px) { .selmenu button span { display: none; } .selmenu button { padding: 0 10px; } }

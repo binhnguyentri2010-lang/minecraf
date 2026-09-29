@@ -8,6 +8,9 @@ const I = (d: ReactNode) => (
 
 export const Icons = {
   select: I(<path d="M5 3l14 8-6 2-2 6z" />),
+  lasso: I(<><path d="M12 4c-5 0-8 2-8 5s3 5 8 5 8-2 8-5-3-5-8-5z" strokeDasharray="3 2.4" /><path d="M9 14c-1 2 0 4 2 5" /></>),
+  cut: I(<><circle cx="6" cy="18" r="2.6" /><circle cx="18" cy="18" r="2.6" /><path d="M7.5 16L17 4M16.5 16L7 4" /></>),
+  paste: I(<><rect x="6" y="5" width="12" height="15" rx="2" /><path d="M9.5 5V3.5h5V5" /></>),
   pen: I(<><path d="M4 20l1-4L16 5l3 3L8 19z" /><path d="M14 7l3 3" /></>),
   highlighter: I(<><path d="M9 14l6-6 4 4-6 6H9z" /><path d="M4 20h6" /></>),
   eraser: I(<><path d="M8 20h11" /><path d="M5 15l8-9 6 6-6 6H9z" /></>),

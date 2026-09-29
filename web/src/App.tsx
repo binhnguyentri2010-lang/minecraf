@@ -6,6 +6,7 @@ import { GraphDialog, TextDialog } from './ui/Dialogs';
 import { ExportPanel } from './ui/ExportPanel';
 import { Inspector } from './ui/Inspector';
 import { Library } from './ui/Library';
+import { SelectionMenu } from './ui/SelectionMenu';
 import { TopBar } from './ui/TopBar';
 import { useUI } from './ui/uiStore';
 
@@ -20,6 +21,7 @@ export function App() {
       <Board />
       <TopBar />
       <Inspector />
+      <SelectionMenu />
       <Dock />
       {panel === 'library' && <Library />}
       {panel === 'boards' && <BoardsPanel />}

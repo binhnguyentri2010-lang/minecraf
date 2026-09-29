@@ -9,7 +9,7 @@ Dữ liệu lưu ngay trên thiết bị (IndexedDB). Cài lên màn hình chín
 **Vẽ tay**
 - Nét bút mực theo áp lực Apple Pencil (Pointer Events, gộp điểm + dự đoán điểm để giảm độ trễ), lưu dạng vector nên phóng to không vỡ.
 - Chống tì tay: sau khi phát hiện bút, ngón tay chỉ **kéo và chụm hai ngón để thu phóng**, không để lại nét. Nút "Chỉ Pencil" bật/tắt thủ công. Đầu tẩy của Pencil cũng được nhận.
-- Bút, bút dạ quang, tẩy (xoá nguyên nét), 6 màu, độ dày, hoàn tác/làm lại không giới hạn (Ctrl/Cmd+Z, +Shift+Z).
+- Bút, bút dạ quang, tẩy (xoá nguyên nét), 8 màu, độ dày, hoàn tác/làm lại không giới hạn (Ctrl/Cmd+Z, +Shift+Z).
 - **Nắn nét**: vẽ xong, *giữ bút yên ~0,5 giây trước khi nhấc* → nét được nắn thành đoạn thẳng, đường tròn, elip, tam giác/đa giác hoặc hình chữ nhật/vuông chuẩn (xem trước ngay lúc giữ; di chuyển tiếp để huỷ).
 - Nền trắng, ô li, chấm, hoặc hệ trục Oxy.
 
@@ -18,8 +18,12 @@ Dữ liệu lưu ngay trên thiết bị (IndexedDB). Cài lên màn hình chín
 - Thước đo góc 0–180° hai chiều, kéo và xoay như thước kẻ.
 - Đoạn thẳng (tự bám 0°/45°/90°), mũi tên, compa (kéo từ tâm ra bán kính), hình chữ nhật; nét liền/nét đứt một chạm.
 
-**Chọn và chỉnh sửa**
-- Chạm chọn một đối tượng, kéo khung chọn nhiều đối tượng; kéo để di chuyển, núm tròn phía trên để xoay (tự bám bội số 15°), ô vuông góc dưới để phóng to/thu nhỏ; Nhân đôi (Ctrl+D), Xoá (Delete), đổi màu/độ dày/nét đứt.
+**Chọn và chỉnh sửa (giống GoodNotes)**
+- **Khoanh vùng (lasso)**: vẽ một vòng quanh những gì muốn chọn (nét đủ 50% nằm trong vòng, hình vẽ sẵn nằm phần lớn trong vòng). Bắt đầu vòng ngay trên một nét chưa chọn vẫn khoanh bình thường; chạm vào một nét để chọn riêng nét đó. **Chọn** (mũi tên) chạm để chọn hoặc kéo khung chữ nhật.
+- Kéo bên trong vùng chọn để **di chuyển cả cụm**; núm tròn phía trên để xoay (tự bám bội số 15°), ô vuông góc dưới để phóng to/thu nhỏ. Mỗi lần di chuyển/xoay/co giãn là một bước hoàn tác.
+- Menu nổi trên vùng chọn: **Cắt, Sao chép, Dán, Nhân đôi, Xoá** (menu ẩn khi đang kéo). Khi không chọn gì mà đã sao chép, hiện nút **Dán**. Phím tắt: Ctrl/Cmd+C, X, V, D, Delete, Ctrl+Z.
+- Bảng thuộc tính bên trái: đổi màu (8 màu), độ dày, nét đứt và tham số của hình vẽ sẵn.
+- **Cử chỉ**: chạm **hai ngón** = hoàn tác, chạm **ba ngón** = làm lại; một ngón kéo, hai ngón chụm để thu phóng.
 
 **Thư viện 74 hình vẽ sẵn** (chạm để chèn; tìm kiếm không cần gõ dấu; chỉnh tham số bằng thanh trượt):
 | Nhóm | Nội dung |
@@ -69,8 +73,8 @@ web/tests/   unit (Vitest) và e2e (Playwright-core)
 
 ## Đã kiểm chứng gì
 
-- **Unit (70)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
-- **E2E (146 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/di chuyển/xoay/co giãn, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
+- **Unit (78)**: bộ phân tích biểu thức (thứ tự phép tính, ngầm định nhân, từ chối đầu vào nguy hiểm); dàn công thức không bao giờ ném lỗi; nhận dạng nét (đường thẳng, tròn, elip, chữ nhật, tam giác, nét nguệch ngoạc); **nét khuất khớp một bộ kiểm tra che khuất độc lập trên hơn 1.000 góc nhìn**; hình học từng hình (tâm nội/ngoại tiếp, trực tâm, đường phân giác, các tứ giác, đa giác đều, tiếp tuyến hình nón, giao tuyến Bài 2); mọi hình hợp lệ ở tham số nhỏ nhất/mặc định/lớn nhất; cấu trúc PDF (bảng xref) và SVG; hoàn tác/làm lại, gộp bước hoàn tác, chuyển bảng, nạp dữ liệu cũ, tạo id khi không có `crypto.randomUUID`.
+- **E2E (180 kiểm tra)**: bút với áp lực thay đổi, chống tì tay, chụm hai ngón, chọn/khoanh vùng/di chuyển/xoay/co giãn, cắt-sao chép-dán, chạm 2-3 ngón, thước bám mép (cả khi xoay), nắn nét, hộp thoại đồ thị/công thức, nhiều bảng và khôi phục sau tải lại, tải về PNG/SVG/PDF thật, bố cục iPad dọc/ngang, iPhone (lớn, nhỏ, ngang), laptop, bản production chạy offline; mở qua `http://` (không có `crypto.randomUUID`) và khi trình duyệt chặn lưu trữ vẫn không bị trắng trang.
 
 ## Giới hạn / chưa xác minh
 

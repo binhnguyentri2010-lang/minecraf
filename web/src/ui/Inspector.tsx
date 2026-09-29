@@ -44,12 +44,12 @@ const sameView = (a: View, b: View) => a.tool === b.tool && a.size === b.size &&
 
 export function Inspector() {
   const { sel, tool, size } = useBoard((st): View => {
-    if (st.tool !== 'select' || st.selection.length === 0) return { tool: st.tool, sel: [], size: st.size };
+    if ((st.tool !== 'select' && st.tool !== 'lasso') || st.selection.length === 0) return { tool: st.tool, sel: [], size: st.size };
     const ids = new Set(st.selection);
     return { tool: st.tool, sel: st.items.filter((i) => ids.has(i.id)), size: st.size };
   }, sameView);
   const s = useBoard.getState();
-  if (tool !== 'select' || sel.length === 0) return null;
+  if ((tool !== 'select' && tool !== 'lasso') || sel.length === 0) return null;
   const one = sel.length === 1 ? sel[0] : null;
   const def = one?.type === 'obj' && one.gen ? shapeById(one.gen.id) : undefined;
   const hasObj = sel.some((i) => i.type === 'obj');

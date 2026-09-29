@@ -57,6 +57,11 @@ for (const [name, vp] of devices) {
   const scrollOk = await page.evaluate(() => { const e = document.querySelector('.inspector'); return e.scrollHeight <= e.clientHeight || getComputedStyle(e).overflowY === 'auto'; });
   check(`${name}: inspector content scrolls when tall`, scrollOk);
   await page.screenshot({ path: `${SHOTS}/layout-${name}-inspector.png` });
+  const menu = await rect(page, '.selmenu');
+  const dockM = await rect(page, '.dock'), topM = await rect(page, '.topbar');
+  check(`${name}: selection menu inside screen, clear of bars`, inside(menu, vp.width, vp.height) && !overlap(menu, dockM) && !overlap(menu, topM), JSON.stringify(menu));
+  const handle = await page.evaluate(() => { const st = window.__board.getState(); const g = window.__app.selectionGeo(st.items.filter((i) => st.selection.includes(i.id)), st.viewport.scale); const v = st.viewport; return { x: v.x + g.rotate[0] * v.scale, y: v.y + g.rotate[1] * v.scale }; });
+  check(`${name}: menu does not cover the rotate handle`, !(menu && handle.x > menu.l && handle.x < menu.r && handle.y > menu.t - 12 && handle.y < menu.b + 12), JSON.stringify({ handle, menu }));
 
   // modal fits
   await page.getByTestId('open-graph').click();

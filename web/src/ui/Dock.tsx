@@ -6,6 +6,7 @@ import { Icons } from './icons';
 
 const TOOLS: { id: Tool; label: string; icon: keyof typeof Icons }[] = [
   { id: 'select', label: 'Chọn', icon: 'select' },
+  { id: 'lasso', label: 'Khoanh vùng', icon: 'lasso' },
   { id: 'pen', label: 'Bút', icon: 'pen' },
   { id: 'highlighter', label: 'Dạ quang', icon: 'highlighter' },
   { id: 'eraser', label: 'Tẩy', icon: 'eraser' },

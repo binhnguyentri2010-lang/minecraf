@@ -76,6 +76,7 @@ export interface Aid {
 
 export type Tool =
   | 'select'
+  | 'lasso'
   | 'pen'
   | 'highlighter'
   | 'eraser'
